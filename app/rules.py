@@ -20,3 +20,70 @@ OPEN_STATUSES = {Status.unscheduled, Status.scheduled, Status.in_progress}
 
 def is_cleared(writeups):
     return not any(w.severity == Severity.high and w.status in OPEN_STATUSES for w in writeups)
+
+
+class RuleViolation(Exception):
+    pass
+
+
+def is_overdue(writeup, today):
+    return writeup.status in {Status.scheduled, Status.in_progress} and writeup.scheduled_date < today
+
+
+def schedule(status, current_date, new_date, today):
+    _require_open(status)
+    if new_date < today:
+        raise RuleViolation("The scheduled date can't be in the past.")
+    if new_date == current_date:
+        raise RuleViolation("The write-up is already scheduled for that date.")
+    if status == Status.unscheduled:
+        return Status.scheduled
+    return status
+
+
+def unschedule(status):
+    _require_status(status, {Status.scheduled}, "Only a scheduled write-up can be unscheduled.")
+    return Status.unscheduled
+
+
+def start(status):
+    _require_status(status, {Status.scheduled}, "Only a scheduled write-up can be started.")
+    return Status.in_progress
+
+
+def resolve(status):
+    _require_status(status, {Status.in_progress}, "Only an in-progress write-up can be resolved.")
+    return Status.resolved
+
+
+def cancel(status):
+    _require_open(status)
+    return Status.canceled
+
+
+def change_severity(status, current, new):
+    _require_open(status)
+    if new == current:
+        raise RuleViolation(f"Severity is already {current}.")
+
+
+def edit_description(status, current, new):
+    _require_open(status)
+    if new == current:
+        raise RuleViolation("The description hasn't changed.")
+
+
+def require_text(value, field):
+    value = value.strip()
+    if not value:
+        raise RuleViolation(f"{field} is required.")
+    return value
+
+
+def _require_open(status):
+    _require_status(status, OPEN_STATUSES, f"A {status} write-up can't be changed.")
+
+
+def _require_status(status, allowed, message):
+    if status not in allowed:
+        raise RuleViolation(message)
