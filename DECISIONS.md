@@ -1,5 +1,42 @@
 # Decisions
 
+This file has five parts: what was built, what was left out on purpose, what would come next, the questions I would have asked the product manager with the answers I chose, and the architecture decisions. Numbers in brackets point to the question (1 to 31) or architecture decision (A1 to A17) that holds the detail.
+
+## What was built
+
+- **A fleet clearance board** as the home screen. Aircraft are in two groups, Grounded and Cleared, each with a count. Every row lists the aircraft's open write-ups with severity and due date, and flags anything overdue or not yet scheduled (27, 28).
+- **One rule for clearance:** any open High write-up grounds its aircraft, from filing until it is resolved, canceled or downgraded. It is computed from the write-ups on every page load and never stored, so it can't disagree with the record (10, A7).
+- **A write-up lifecycle:** Unscheduled, Scheduled, In progress, Resolved, with Canceled reachable from any open state. Each step is its own action with its own required fields (2, 13, 17 to 22, A4).
+- **An aircraft panel** to file a write-up and to act on the open ones. Severity, due date and description are changed in place on the card (29, 30).
+- **An audit log** of every change: who, when, the old and new value, and a note where one is required. Each aircraft shows it as one history list (7, A9).
+- **Protection against acting on out-of-date information.** An action sent from a page that predates another change to the same write-up is refused, as is the second of two overlapping requests (A14, A15).
+- **Rules in the database as well as the code:** foreign keys and CHECK constraints for allowed values, required text, and the due date matching the status (A10).
+- **A demo fleet** of 30 aircraft, built through the app's own actions so every seeded write-up is one the app could have produced (A11).
+- **Tests** for the rules, the database constraints, each route, the rendered page and the seed data: 211 in all (A6).
+
+## Left out on purpose
+
+- **Login, roles and verified identity.** People type their name on each action (5). This is the largest gap: anyone can clear a grounded aircraft by downgrading or canceling its High write-up, and the audit log records who someone said they were. Sign-in is a project of its own and the brief doesn't ask for it, so the time went to the rules and the record. With no login there is also no protection against forged form posts from another site.
+- **Live updates.** The board is correct when it loads and says so: "Status as of 21:10. Refresh to update." (12). Pushing changes to open pages needs a second moving part that the rest of the app doesn't.
+- **A shortcut for a fix made on the spot.** A write-up must be scheduled and started before it can be resolved, so a quick fix takes three forms (17, 20). Every write-up then has the same history, and the brief says every issue needs to be scheduled.
+- **Undo.** Resolving and canceling are final; a write-up closed by mistake is filed again (4). Reopening would need its own rules for what the aircraft's status was in between.
+- **Assigning a write-up to a person** (6), **an inspection sign-off after a fix** (3), **MEL deferrals** (16) and **categories beyond severity** (8). All are real parts of aircraft maintenance, and each would have taken time from doing the core flow well.
+- **Adding or editing aircraft in the app.** The fleet is seed data (15).
+- **Paging the board.** The whole fleet is one page. Measured at 1,500 aircraft, the board took two queries and about 60 ms on the server, but 1.7 MB of HTML. That is acceptable for the 30 it is designed for and usable well beyond, though not pleasant (9).
+- **A phone-first layout.** The app works on a phone, but it is designed for a desk (26).
+- **A JSON API** (A4), **database migrations** (A3), **browser tests** (A6) and **per-base time zones** (A8). None is needed to run or judge this version; each has its reason where it is decided.
+
+## With more time
+
+In the order I would take them:
+
+1. **Roles and verified identity.** A login, with downgrading or canceling a High limited to maintenance control or needing a second sign-off. This closes the gap described above.
+2. **Live updates on the board**, so a controller watching it sees an aircraft ground or clear without refreshing (12).
+3. **A way to reopen a write-up closed by mistake**, recorded in the audit log like any other change (4).
+4. **A schedule view across the fleet:** every open write-up by due date. The board answers "can it fly?" per aircraft; it doesn't answer "what is due this week?".
+5. **Managing the fleet in the app** (15).
+6. **Paging the board, migrations and browser tests**, in that order, as the fleet and the team grow.
+
 ## Questions for the product manager
 
 ### 1. Can a write-up be filed without a repair date?
@@ -40,7 +77,7 @@
 
 ### 12. Does "at any moment" mean live push updates?
 **Decision:** No. Status is correct whenever a page loads or an action is taken. Other users' changes appear on refresh.
-**Why:** Start simple. If there's time at the end, add live push then.
+**Why:** Start simple. Live updates are listed under With more time.
 
 ### 13. How does a write-up close when there's no fault to fix, or it's a duplicate?
 **Decision:** A separate Canceled state, with a required note. This adds to the stages in question 2.
@@ -50,7 +87,7 @@
 **Decision:** The write-up is flagged Overdue. That flag is computed and doesn't affect whether the aircraft can fly.
 
 ### 15. Can aircraft be added or edited in the app?
-**Decision:** Not for now; the fleet is seed data. Managing aircraft in the UI is a candidate to pick up at the end if there's time.
+**Decision:** No; the fleet is seed data. Managing aircraft in the UI is listed under With more time.
 
 ### 16. Should the app model MEL deferrals?
 **Decision:** No, that's out of scope.
@@ -108,7 +145,7 @@
 Each write-up card is edited in place: the severity, the date and the description are each the control that changes them, opening a small form where they sit. The card's one button is the next step for its status (Schedule, Start work or Resolve), and Cancel is a quiet link. Status is a muted chip; the date, or Needs scheduling, sits in the top-right corner. A first version put every action in a list of disclosures under each card, which read as a settings page rather than a work item.
 
 ### 30. How is a write-up filed?
-**Decision:** From a Create Write-Up button in the aircraft panel, with the form shown inline in the panel. A modal is a later polish item, only if time remains. Severity has no default; the reporter must choose. A scheduled date can be given while filing; the write-up is then filed and scheduled in one step, and the audit log records the reporter as the one who scheduled it.
+**Decision:** From a Create Write-Up button in the aircraft panel, with the form shown inline in the panel. A modal would be polish and was left out. Severity has no default; the reporter must choose. A scheduled date can be given while filing; the write-up is then filed and scheduled in one step, and the audit log records the reporter as the one who scheduled it.
 **Why:** The button lives where the aircraft is already known, so the existing per-aircraft route works unchanged. A preselected severity would let someone file a grounding defect as Medium by accident.
 
 ### 31. What does the app look like?
@@ -191,8 +228,3 @@ Each write-up card is edited in place: the severity, the date and the descriptio
 ### A17. What does a request for something that doesn't exist get back?
 **Decision:** Plain text with the right status (404, or 405 for a wrong method), everywhere. A tail number in the URL matches in any case, as search does. An id too large for SQLite to hold is a 404.
 **Why:** FastAPI answers these in JSON by default, so a mistyped tail showed raw `{"detail": ...}` in a server-rendered app, while other paths already answered in text. A styled error page would be nicer and isn't worth it here.
-
-## With more time
-
-### Roles and verified identity
-Anyone can clear a grounded aircraft by downgrading or canceling its High write-up under a typed name (5, 11, 21). The audit log records who someone said they were, not who they are. Next would be a login, with downgrading or canceling a High limited to maintenance control or needing a second sign-off.
