@@ -36,6 +36,7 @@ In the order I would take them:
 4. **A schedule view across the fleet:** every open write-up by due date. The board answers "can it fly?" per aircraft; it doesn't answer "what is due this week?".
 5. **Managing the fleet in the app** (15).
 6. **Paging the board, migrations and browser tests**, in that order, as the fleet and the team grow.
+7. **An MCP connector**, so an AI assistant can answer "which aircraft are grounded and why?" and file or move along a write-up. The actions already live in `app/service.py` apart from the web routes, so each would become a tool without touching the rules (A4). It comes after item 1: an assistant acting on a write-up needs a verified identity behind it as much as a person does.
 
 ## Questions for the product manager
 
