@@ -216,3 +216,10 @@ def test_redirect_keeps_search_and_hidden_groups(client):
 
 def test_unknown_writeup_is_404(client):
     act(client, 999, "start", expected=404)
+
+
+def test_file_sent_as_a_text_field_is_rejected(client):
+    writeup_id = scheduled(client)
+    response = client.post(f"/writeups/{writeup_id}/start", files={"actor": ("name.txt", b"Sam Okafor")})
+    assert response.status_code == 400
+    assert "Name is invalid." in response.text

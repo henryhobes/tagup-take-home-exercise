@@ -18,7 +18,14 @@ from app.rules import RuleViolation, Severity, WrongStatus, is_overdue
 
 HERE = Path(__file__).parent
 
-FIELD_LABELS = {"severity": "Severity", "scheduled_date": "Date"}
+FIELD_LABELS = {
+    "severity": "Severity",
+    "scheduled_date": "Date",
+    "actor": "Name",
+    "reported_by": "Name",
+    "description": "Description",
+    "note": "Note",
+}
 
 
 def local_now():
