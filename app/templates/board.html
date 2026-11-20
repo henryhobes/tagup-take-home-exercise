@@ -239,7 +239,7 @@
         </form>
         {% endcall %}
 
-        <p class="meta">#{{ id }} · {{ writeup.reported_by }} · {{ writeup.reported_at | local_time(now) }}</p>
+        <p class="meta">#{{ id }} · {{ writeup.reported_by }} · {{ writeup.reported_at | local_time }}</p>
 
         <div class="card-actions">
           {% if writeup.status == "unscheduled" %}
@@ -294,7 +294,7 @@
       <ol class="timeline">
         {% for entry in timeline %}
         <li>
-          <p class="when"><time>{{ entry.at | local_time(now) }}</time> · {{ entry.actor }}</p>
+          <p class="when"><time>{{ entry.at | local_time }}</time> · {{ entry.actor }}</p>
           <p>{{ event_text(entry) }}</p>
           {% if entry.event and entry.event.note %}<p class="note">{{ entry.event.note }}</p>{% endif %}
           <p class="ref">#{{ entry.writeup.id }} {{ entry.writeup.description }}</p>

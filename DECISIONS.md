@@ -147,6 +147,7 @@ Each write-up card is edited in place: the severity, the date and the descriptio
 ### A8. What counts as "today" for Overdue and past-date checks?
 **Decision:** The server's local date. Scheduled dates are calendar dates with no time. Today is passed into the rule functions so tests can fix it. Audit timestamps are stored in UTC.
 **Why:** Simple and predictable. An airline spanning time zones could disagree about "today" near midnight; per-base time zones would fix that but aren't worth it here.
+**Note:** Audit timestamps are shown in the server's zone at the offset it had on that date. They were first converted with today's offset, which put entries from the other side of a daylight-saving change an hour out. The test for this sets the process time zone, which Windows can't do, so it is skipped there.
 
 ### A9. Where do "who" and "why" live, and who has to give a name?
 **Decision:** The write-up row holds its current state plus who filed it and when. Every later change is an audit-log row with who, when, the old and new value, and a note. A name is required on every action, not only filing and resolving. Who fixed it and what was done live only on the resolve entry; cancel notes and severity reasons likewise.

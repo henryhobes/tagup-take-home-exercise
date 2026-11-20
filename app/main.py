@@ -29,12 +29,14 @@ def local_now():
 def day(value):
     if isinstance(value, str):
         value = date.fromisoformat(value)
-    return value.strftime("%-d %b %Y")
+    return f"{value.day} {value:%b %Y}"
 
 
-def local_time(at, now):
-    # Stored as naive UTC (models.py); shown in the server's zone, the same one "today" uses.
-    return at.replace(tzinfo=UTC).astimezone(now.tzinfo).strftime("%-d %b %H:%M")
+def local_time(at):
+    # Stored as naive UTC (models.py); shown in the server's zone, the same one "today" uses,
+    # at the offset that zone had on that date.
+    at = at.replace(tzinfo=UTC).astimezone()
+    return f"{at.day} {at:%b %H:%M}"
 
 
 templates = Jinja2Templates(directory=HERE / "templates")
