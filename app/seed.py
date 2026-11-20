@@ -26,7 +26,7 @@ def seed(session, now):
         plane = Aircraft(tail_number=f"N{number}TG")
         session.add(plane)
         planes[number] = plane
-    session.commit()
+    session.flush()
 
     def file(number, severity, description, when, reporter=PILOT):
         return service.file_writeup(session, planes[number].id, reporter, description, severity, when)
@@ -98,3 +98,5 @@ def seed(session, now):
     service.schedule(session, w, CONTROLLER, day(-6), ago(8, -1))
     service.start(session, w, MECHANIC, ago(6, 2))
     service.resolve(session, w, MECHANIC, "Replaced the latch assembly.", ago(6))
+
+    session.commit()

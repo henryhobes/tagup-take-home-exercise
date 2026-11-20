@@ -1,16 +1,11 @@
-from datetime import date, timedelta
 from types import SimpleNamespace
 
 import pytest
 
 from app import rules
 from app.rules import RuleViolation, Severity, Status
+from tests.common import CLOSED, OPEN, TODAY, TOMORROW, YESTERDAY
 
-TODAY = date(2026, 6, 15)
-YESTERDAY = TODAY - timedelta(days=1)
-TOMORROW = TODAY + timedelta(days=1)
-OPEN = [Status.unscheduled, Status.scheduled, Status.in_progress]
-CLOSED = [Status.resolved, Status.canceled]
 ALL = OPEN + CLOSED
 
 

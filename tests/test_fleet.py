@@ -1,10 +1,9 @@
-from datetime import UTC, date, datetime
+from datetime import date
 
 from app import service
 from app.models import Aircraft
 from app.rules import Severity, Status
-
-NOW = datetime(2026, 6, 15, 12, 0, tzinfo=UTC)
+from tests.common import NOW
 
 
 def add_aircraft(session, *tails):

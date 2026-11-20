@@ -48,7 +48,7 @@ class TestForeignKeys:
     def test_writeup_needs_existing_aircraft(self, session):
         assert_rejected(session, "writeup", WRITEUP | {"aircraft_id": 999})
 
-    def test_event_needs_existing_writeup(self, session, aircraft):
+    def test_event_needs_existing_writeup(self, session):
         assert_rejected(session, "writeup_event", EVENT | {"writeup_id": 999})
 
 

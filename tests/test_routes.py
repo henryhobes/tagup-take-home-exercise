@@ -1,18 +1,16 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 from app.main import create_app, get_now
-from app.models import Aircraft, EventKind, Writeup, WriteupEvent
+from app.models import Aircraft, EventKind, Writeup
 from app.rules import Severity, Status
+from tests.common import NOW, TOMORROW, YESTERDAY
 
-NOW = datetime(2026, 6, 15, 12, 0, tzinfo=UTC)
-TODAY = NOW.astimezone().date()
-TOMORROW = TODAY + timedelta(days=1)
-NEXT_WEEK = TODAY + timedelta(days=7)
-YESTERDAY = TODAY - timedelta(days=1)
+NEXT_WEEK = date(2026, 6, 22)
+FILING = {"severity": "high", "description": "Cracked window", "reported_by": "Dana Ruiz"}
 
 
 @pytest.fixture
@@ -24,11 +22,8 @@ def client(engine, session):
     return TestClient(app, follow_redirects=False)
 
 
-def file(client, severity="high", description="Cracked window", reported_by="Dana Ruiz"):
-    response = client.post(
-        "/aircraft/1/writeups",
-        data={"severity": severity, "description": description, "reported_by": reported_by},
-    )
+def file(client, **overrides):
+    response = client.post("/aircraft/1/writeups", data=FILING | overrides)
     assert response.status_code == 303, response.text
     return int(response.headers["location"].rsplit("/", 1)[1])
 
@@ -58,8 +53,7 @@ def load(session, writeup_id):
 
 
 def events(session, writeup_id):
-    session.expire_all()
-    return session.scalars(select(WriteupEvent).where(WriteupEvent.writeup_id == writeup_id)).all()
+    return load(session, writeup_id).events
 
 
 class TestFile:
@@ -70,29 +64,25 @@ class TestFile:
         assert writeup.severity == Severity.high
         assert writeup.description == "Flickering warning light"
         assert writeup.reported_by == "Dana Ruiz"
-        assert writeup.reported_at == NOW.replace(tzinfo=None)
+        assert writeup.reported_at == NOW.astimezone(UTC).replace(tzinfo=None)
         assert events(session, writeup_id) == []
 
     def test_redirects_to_writeup(self, client):
-        response = client.post(
-            "/aircraft/1/writeups",
-            data={"severity": "low", "description": "Scuffed seat", "reported_by": "Dana Ruiz"},
-        )
-        assert response.headers["location"] == "/writeups/1"
+        assert file(client) == 1
 
     @pytest.mark.parametrize("field", ["description", "reported_by"])
-    def test_blank_field_is_rejected(self, client, session, field):
-        data = {"severity": "low", "description": "Scuffed seat", "reported_by": "Dana Ruiz", field: " "}
-        assert client.post("/aircraft/1/writeups", data=data).status_code == 400
+    @pytest.mark.parametrize("value", ["", " "])
+    def test_blank_field_is_rejected(self, client, session, field, value):
+        assert client.post("/aircraft/1/writeups", data=FILING | {field: value}).status_code == 400
         assert session.scalars(select(Writeup)).all() == []
 
     def test_unknown_severity_is_rejected(self, client):
-        data = {"severity": "critical", "description": "Scuffed seat", "reported_by": "Dana Ruiz"}
-        assert client.post("/aircraft/1/writeups", data=data).status_code == 422
+        response = client.post("/aircraft/1/writeups", data=FILING | {"severity": "critical"})
+        assert response.status_code == 400
+        assert response.text.startswith("severity:")
 
     def test_unknown_aircraft_is_404(self, client):
-        data = {"severity": "low", "description": "Scuffed seat", "reported_by": "Dana Ruiz"}
-        assert client.post("/aircraft/999/writeups", data=data).status_code == 404
+        assert client.post("/aircraft/999/writeups", data=FILING).status_code == 404
 
 
 class TestSchedule:
@@ -105,7 +95,12 @@ class TestSchedule:
         assert (event.kind, event.actor, event.from_value, event.to_value) == (
             EventKind.scheduled, "Sam Okafor", None, TOMORROW.isoformat()
         )
-        assert event.at == NOW.replace(tzinfo=None)
+        assert event.at == NOW.astimezone(UTC).replace(tzinfo=None)
+
+    def test_missing_date_is_rejected(self, client, session):
+        writeup_id = file(client)
+        act(client, writeup_id, "schedule", expected=400, scheduled_date="")
+        assert load(session, writeup_id).status == Status.unscheduled
 
     def test_reschedule_logs_old_and_new_date(self, client, session):
         writeup_id = scheduled(client, TOMORROW)

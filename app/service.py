@@ -11,8 +11,11 @@ from app.rules import OPEN_STATUSES, require_text
 @dataclass
 class AircraftStatus:
     aircraft: Aircraft
-    cleared: bool
     open_writeups: list[Writeup]
+
+    @property
+    def cleared(self):
+        return rules.is_cleared(self.open_writeups)
 
 
 def fleet_status(session):
@@ -23,10 +26,7 @@ def fleet_status(session):
     by_aircraft = {plane.id: [] for plane in aircraft}
     for writeup in open_writeups:
         by_aircraft[writeup.aircraft_id].append(writeup)
-    return [
-        AircraftStatus(plane, rules.is_cleared(by_aircraft[plane.id]), by_aircraft[plane.id])
-        for plane in aircraft
-    ]
+    return [AircraftStatus(plane, by_aircraft[plane.id]) for plane in aircraft]
 
 
 def file_writeup(session, aircraft_id, reported_by, description, severity, now):
@@ -39,7 +39,7 @@ def file_writeup(session, aircraft_id, reported_by, description, severity, now):
         reported_at=_utc(now),
     )
     session.add(writeup)
-    session.commit()
+    session.flush()
     return writeup
 
 
@@ -49,7 +49,7 @@ def schedule(session, writeup, actor, new_date, now):
     kind = EventKind.scheduled if old_date is None else EventKind.rescheduled
     writeup.status = rules.schedule(writeup.status, old_date, new_date, today(now))
     writeup.scheduled_date = new_date
-    _log(session, writeup, kind, actor, now, from_value=_iso(old_date), to_value=new_date.isoformat())
+    _log(session, writeup, kind, actor, now, from_value=None if old_date is None else old_date.isoformat(), to_value=new_date.isoformat())
 
 
 def unschedule(session, writeup, actor, now):
@@ -99,7 +99,7 @@ def edit_description(session, writeup, actor, description, now):
 
 
 def today(now):
-    return now.astimezone().date()
+    return now.date()
 
 
 def _log(session, writeup, kind, actor, now, from_value=None, to_value=None, note=None):
@@ -114,12 +114,8 @@ def _log(session, writeup, kind, actor, now, from_value=None, to_value=None, not
             note=note,
         )
     )
-    session.commit()
 
 
 def _utc(now):
     return now.astimezone(UTC).replace(tzinfo=None)
 
-
-def _iso(value):
-    return None if value is None else value.isoformat()
