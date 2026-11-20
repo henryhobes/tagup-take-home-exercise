@@ -66,6 +66,8 @@ summary::-webkit-details-marker { display: none; }
 .board {
   padding: var(--gutter);
   max-width: 72rem;
+  /* Rows lay out by the board's own width: an open panel narrows it without the window changing. */
+  container-type: inline-size;
 }
 
 @media (min-width: 960px) {
@@ -393,9 +395,9 @@ input[type="radio"] { accent-color: var(--fg); margin: 0; }
 .note::after { content: "”"; }
 .ref { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-/* ---------- Narrow screens ---------- */
+/* ---------- Narrow board ---------- */
 
-@media (max-width: 640px) {
+@container (max-width: 40rem) {
   .fleet thead { display: none; }
   .fleet .group-head { display: flex; justify-content: space-between; border-bottom: 1px solid currentColor; }
   .fleet .group-head > * { border: 0; }
