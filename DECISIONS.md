@@ -54,3 +54,27 @@
 
 ### 16. Should the app model MEL deferrals?
 **Decision:** No, that's out of scope.
+
+### 17. Can an Unscheduled write-up go straight to In progress?
+**Decision:** No. It must be Scheduled first.
+
+### 18. Once Scheduled, can the date change or the write-up go back to Unscheduled?
+**Decision:** Both. The date can be changed, and a Scheduled write-up can go back to Unscheduled.
+**Note:** Went against the AI recommendation, which was to allow rescheduling only.
+
+### 19. Can an In progress write-up go back to Scheduled (e.g. waiting on parts)?
+**Decision:** No. It stays In progress, but its scheduled date can still be changed. The scheduled date is the date the repair should be *finished by*, not the day work starts. A multi-day repair might go In progress on Monday with a scheduled date of Friday.
+**Note:** Went against the AI recommendation, which was to allow going back to Scheduled with a new date.
+
+### 20. Can a write-up be Resolved directly from Scheduled?
+**Decision:** No. Only an In progress write-up can be Resolved.
+
+### 21. Which states can a write-up be Canceled from, and what does it require?
+**Decision:** Any open state (Unscheduled, Scheduled, In progress). Canceling requires a name and a note, the same as a severity change, because canceling an open High clears the aircraft. This adds the name to question 13.
+
+### 22. Can the scheduled date be set to a date in the past?
+**Decision:** No. Dates before today are rejected, both when scheduling and when rescheduling.
+
+### 23. Can a write-up's description or aircraft be edited after filing?
+**Decision:** The description can be edited, and each edit is recorded in the audit log. The aircraft can't be changed; a write-up filed against the wrong aircraft is canceled and filed again.
+**Note:** Went against the AI recommendation, which was to allow no edits.
