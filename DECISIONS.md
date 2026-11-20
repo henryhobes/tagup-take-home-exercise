@@ -79,6 +79,14 @@
 **Decision:** The description can be edited, and each edit is recorded in the audit log. The aircraft can't be changed; a write-up filed against the wrong aircraft is canceled and filed again.
 **Note:** Went against the AI recommendation, which was to allow no edits.
 
+### 24. Can a resolved or canceled write-up still be edited?
+**Decision:** No. Severity and description can only change while a write-up is open. Closed write-ups are history.
+**Note:** Made during implementation, not yet reviewed.
+
+### 25. What happens when a change doesn't change anything (same date, same severity, same description)?
+**Decision:** It's rejected with a message, so the audit log never holds entries where nothing happened.
+**Note:** Made during implementation, not yet reviewed.
+
 ## Architecture
 
 ### A1. Language and framework?
@@ -120,3 +128,11 @@
 ### A10. How much is enforced by the database itself?
 **Decision:** Foreign keys are enforced (SQLite leaves them off unless every connection turns them on). CHECK constraints cover: allowed severity, status and audit-entry values; non-empty names and descriptions; the scheduled date matching the status (empty when Unscheduled; set when Scheduled, In progress or Resolved; either when Canceled, since a write-up can be canceled before it was ever scheduled); and a note on every resolve, cancel and severity change.
 **Why:** A second line of defense against bad seed data, manual edits and future bugs. This is a deliberate exception to CLAUDE.md's "don't guard against impossible states". Two rules stay in code only: which transitions are allowed (a CHECK sees one row, not the previous state) and no dates in the past (SQLite rejects `date('now')` in a CHECK constraint).
+
+### A11. How is the seed data built?
+**Decision:** Through the same actions the app uses, run with backdated clocks, rather than inserted rows. 30 aircraft; the first twelve each demonstrate one situation (grounded in each open state, grounded by two Highs, cleared after a fix, after a downgrade, after a no-fault cancel, cleared despite an overdue Medium, and so on). A test fails if the seed stops covering every status, severity, audit entry type, overdue case and aircraft situation.
+**Why:** Seeded write-ups and audit entries are guaranteed to be ones the app could produce, and the demo can't silently lose a case.
+
+### A12. Indexes?
+**Decision:** Write-ups are indexed on (aircraft, status) for an aircraft's page and on status for the fleet page's "all open write-ups" query. Audit entries are indexed on write-up.
+**Why:** The fleet page filters by status alone, which the (aircraft, status) index from the reviewed model can't serve.
