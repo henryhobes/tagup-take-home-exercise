@@ -10,7 +10,7 @@ from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.orm.exc import StaleDataError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -134,7 +134,12 @@ def render_board(request, session, now, tail="", failure=None):
     query, hidden = board_state(request)
     aircraft = None
     if tail:
-        aircraft = session.scalar(select(Aircraft).where(func.lower(Aircraft.tail_number) == tail.lower()))
+        aircraft = session.scalar(
+            select(Aircraft)
+            .where(func.lower(Aircraft.tail_number) == tail.lower())
+            # The panel shows every write-up and every event; without this each write-up costs a query.
+            .options(selectinload(Aircraft.writeups).selectinload(Writeup.events))
+        )
         if aircraft is None:
             raise HTTPException(404, "Aircraft not found")
         tail = aircraft.tail_number

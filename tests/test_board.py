@@ -2,6 +2,7 @@ from datetime import timedelta
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import event
 
 from app.main import create_app
 from app.models import Aircraft
@@ -176,3 +177,22 @@ def test_inputs_stop_at_the_same_limits_the_server_enforces(client):
     html = page(client, "/?aircraft=N101TG")
     assert html.count('maxlength="100"') == html.count("<span>Your name</span>")
     assert html.count('maxlength="1000"') == html.count("<textarea")
+
+
+def test_panel_runs_the_same_number_of_queries_however_many_writeups(client, engine):
+    def queries_for_panel():
+        statements = []
+
+        def record(connection, cursor, statement, *rest):
+            statements.append(statement)
+
+        event.listen(engine, "before_cursor_execute", record)
+        page(client, "/?aircraft=N101TG")
+        event.remove(engine, "before_cursor_execute", record)
+        return len(statements)
+
+    file(client)
+    with_one = queries_for_panel()
+    for _ in range(4):
+        file(client, scheduled_date=TOMORROW.isoformat())
+    assert queries_for_panel() == with_one
