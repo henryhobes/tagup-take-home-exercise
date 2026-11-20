@@ -49,7 +49,7 @@ summary { cursor: pointer; list-style: none; }
 summary::-webkit-details-marker { display: none; }
 
 /* Labels and data in mono, as on tagup.ai. */
-.fleet thead th, .group-head, .status, .flag, .severity, .state, .date,
+.fleet thead th, .group-head, .status, .flag, .severity, .state, .date, .due,
 .summary, .search label, .field > span, .field legend, .panel-close, .button,
 .history h3, .open-writeups h3, .when {
   font-family: var(--font-mono);
@@ -182,7 +182,9 @@ textarea { resize: vertical; width: 100%; }
 
 /* A fixed severity column, so a wrapped description never reads as a second write-up. */
 .row-writeups { list-style: none; padding: 0; display: grid; gap: 0.3rem; }
-.row-writeups li { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); align-items: baseline; gap: 0.5rem; max-width: 56ch; }
+.row-writeups li { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr) 9.5rem; align-items: baseline; gap: 0.5rem; max-width: 68ch; }
+.due { color: var(--muted); white-space: nowrap; }
+.due-overdue { color: var(--caution-text); }
 .no-writeups { color: var(--muted); font-size: 14px; }
 
 .severity { font-size: 11px; color: var(--muted); }
@@ -406,5 +408,6 @@ input[type="radio"] { accent-color: var(--fg); margin: 0; }
   .fleet .aircraft > .attention { grid-column: 2; }
   .fleet .aircraft > .attention:empty { display: none; }
   .row-writeups li { grid-template-columns: 4rem minmax(0, 1fr); }
+  .due { grid-column: 2; }
   .search input { flex: 1; width: auto; }
 }

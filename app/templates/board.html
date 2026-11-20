@@ -107,7 +107,15 @@
             {% if row.open_writeups %}
             <ul class="row-writeups">
               {% for writeup in row.open_writeups %}
-              <li><span class="severity severity-{{ writeup.severity }}">{{ writeup.severity }}</span><span>{{ writeup.description }}</span></li>
+              <li>
+                <span class="severity severity-{{ writeup.severity }}">{{ writeup.severity }}</span>
+                <span>{{ writeup.description }}</span>
+                {% if writeup.scheduled_date -%}
+                <span class="due{% if is_overdue(writeup, today) %} due-overdue{% endif %}">Due {{ writeup.scheduled_date | day }}</span>
+                {%- else -%}
+                <span class="due">Unscheduled</span>
+                {%- endif %}
+              </li>
               {% endfor %}
             </ul>
             {% else %}

@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -122,3 +124,17 @@ def test_search_and_clearing_it_keep_the_open_aircraft(client):
     html = page(client, "/?q=101&aircraft=N202TG")
     assert '<input type="hidden" name="aircraft" value="N202TG">' in html
     assert '<a href="/?aircraft=N202TG">Clear search</a>' in html
+
+
+def test_row_shows_when_each_open_writeup_is_due(client):
+    file(client, scheduled_date=TOMORROW.isoformat())
+    file(client, severity="low", description="Reading light flickers")
+    html = page(client)
+    assert '<span class="due">Due 16 Jun 2026</span>' in html
+    assert '<span class="due">Unscheduled</span>' in html
+
+
+def test_row_marks_an_overdue_writeup(client):
+    file(client, scheduled_date=TOMORROW.isoformat())
+    client.app.state.clock = lambda: NOW + timedelta(days=2)
+    assert '<span class="due due-overdue">Due 16 Jun 2026</span>' in page(client)
