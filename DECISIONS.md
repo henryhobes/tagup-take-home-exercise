@@ -94,7 +94,7 @@
 **Why:** No setup for the reviewer, and SQLite easily handles 1,500 aircraft. A transaction makes each change and its audit entry commit together. A schema change means deleting the DB file and reseeding, which is fine for a demo.
 
 ### A4. What shape are the routes?
-**Decision:** One POST route per action (schedule, start, resolve, cancel, change severity, edit description), each with its own required fields and its own audit entry. No JSON API.
+**Decision:** One POST route per action (schedule or reschedule, unschedule, start, resolve, cancel, change severity, edit description), each with its own required fields and its own audit entry. No JSON API.
 **Why:** Each action has different rules and inputs, so separate routes keep validation explicit. A generic edit route would have to infer what happened. Nothing in the brief needs JSON.
 
 ### A5. How does someone run it?
@@ -112,3 +112,11 @@
 ### A8. What counts as "today" for Overdue and past-date checks?
 **Decision:** The server's local date. Scheduled dates are calendar dates with no time. Today is passed into the rule functions so tests can fix it. Audit timestamps are stored in UTC.
 **Why:** Simple and predictable. An airline spanning time zones could disagree about "today" near midnight; per-base time zones would fix that but aren't worth it here.
+
+### A9. Where do "who" and "why" live, and who has to give a name?
+**Decision:** The write-up row holds its current state plus who filed it and when. Every later change is an audit-log row with who, when, the old and new value, and a note. A name is required on every action, not only filing and resolving. Who fixed it and what was done live only on the resolve entry; cancel notes and severity reasons likewise.
+**Why:** Decision 7 promises a history of who changed what, which needs a name on every change. This extends decision 5. Keeping each fact in one place avoids resolution columns on the write-up that duplicate the log.
+
+### A10. How much is enforced by the database itself?
+**Decision:** Foreign keys are enforced (SQLite leaves them off unless every connection turns them on). CHECK constraints cover: allowed severity, status and audit-entry values; non-empty names and descriptions; the scheduled date matching the status (empty when Unscheduled; set when Scheduled, In progress or Resolved; either when Canceled, since a write-up can be canceled before it was ever scheduled); and a note on every resolve, cancel and severity change.
+**Why:** A second line of defense against bad seed data, manual edits and future bugs. This is a deliberate exception to CLAUDE.md's "don't guard against impossible states". Two rules stay in code only: which transitions are allowed (a CHECK sees one row, not the previous state) and no dates in the past (SQLite rejects `date('now')` in a CHECK constraint).
