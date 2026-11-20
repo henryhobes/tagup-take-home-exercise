@@ -110,8 +110,12 @@
           </td>
           <td class="num">{{ row.open_writeups | length or "None" }}</td>
           <td class="attention">
-            {% if row.is_overdue(today) %}<span class="flag">Overdue</span>{% endif %}
-            {% if row.needs_scheduling %}<span class="flag">Needs scheduling</span>{% endif %}
+            {%- if row.is_overdue(today) or row.needs_scheduling -%}
+            <div class="flags">
+              {% if row.is_overdue(today) %}<span class="flag">Overdue</span>{% endif %}
+              {% if row.needs_scheduling %}<span class="flag">Needs scheduling</span>{% endif %}
+            </div>
+            {%- endif -%}
           </td>
         </tr>
         {% else %}

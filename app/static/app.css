@@ -169,7 +169,7 @@ textarea { resize: vertical; width: 100%; }
 .reasons { list-style: none; padding: 0; margin-top: 0.2rem; color: var(--fg); }
 .reasons li { max-width: 48ch; }
 
-.attention { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.flags { display: flex; flex-wrap: wrap; gap: 0.35rem; }
 
 .flag {
   display: inline-block;
