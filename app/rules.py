@@ -41,9 +41,9 @@ def is_overdue(writeup, today):
 def schedule(status, current_date, new_date, today):
     _require_open(status)
     if new_date < today:
-        raise RuleViolation("The scheduled date can't be in the past.")
+        raise RuleViolation("The due date can't be in the past.")
     if new_date == current_date:
-        raise RuleViolation("The write-up is already scheduled for that date.")
+        raise RuleViolation("The write-up is already due on that date.")
     if status == Status.unscheduled:
         return Status.scheduled
     return status

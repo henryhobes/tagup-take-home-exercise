@@ -21,7 +21,7 @@ HERE = Path(__file__).parent
 
 FIELD_LABELS = {
     "severity": "Severity",
-    "scheduled_date": "Date",
+    "scheduled_date": "Due date",
     "actor": "Name",
     "reported_by": "Name",
     "description": "Description",

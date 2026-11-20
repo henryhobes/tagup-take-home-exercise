@@ -40,9 +40,9 @@
 {%- macro event_text(entry) -%}
 {% set event = entry.event %}
 {% if event is none %}Filed as {{ filed_severity(entry.writeup) | capitalize }}
-{% elif event.kind == "scheduled" %}Scheduled for {{ event.to_value | day }}
-{% elif event.kind == "rescheduled" %}Rescheduled from {{ event.from_value | day }} to {{ event.to_value | day }}
-{% elif event.kind == "unscheduled" %}Unscheduled; was {{ event.from_value | day }}
+{% elif event.kind == "scheduled" %}Scheduled, due by {{ event.to_value | day }}
+{% elif event.kind == "rescheduled" %}Due date moved from {{ event.from_value | day }} to {{ event.to_value | day }}
+{% elif event.kind == "unscheduled" %}Unscheduled; was due {{ event.from_value | day }}
 {% elif event.kind == "started" %}Work started
 {% elif event.kind == "resolved" %}Resolved
 {% elif event.kind == "canceled" %}Canceled
@@ -177,7 +177,7 @@
           <textarea name="description" rows="3" required>{{ kept("file", "description") }}</textarea>
         </label>
         <label class="field">
-          <span>Scheduled date (optional)</span>
+          <span>Due by (optional)</span>
           {{ date_input("file", none, required=false) }}
         </label>
         {{ name_field("file", "reported_by") }}
@@ -216,10 +216,10 @@
             {% if is_overdue(writeup, today) %}<span class="flag">Overdue</span>{% endif %}
             {% if writeup.scheduled_date %}
             {% call edit(writeup, "schedule", "date", [id ~ "-schedule", id ~ "-unschedule"]) %}
-            <summary class="date" aria-label="Scheduled {{ writeup.scheduled_date | day }}, reschedule">{{ writeup.scheduled_date | day }}</summary>
+            <summary class="date" aria-label="Due {{ writeup.scheduled_date | day }}, change it">Due {{ writeup.scheduled_date | day }}</summary>
             <form class="popover popover-end" method="post" action="/writeups/{{ id }}/schedule{{ form_query }}">
               {{ error_for([id ~ "-schedule", id ~ "-unschedule"]) }}
-              <label class="field"><span>Reschedule to</span>{{ date_input(id ~ "-schedule", writeup.scheduled_date) }}</label>
+              <label class="field"><span>Due by</span>{{ date_input(id ~ "-schedule", writeup.scheduled_date) }}</label>
               {{ name_field(id ~ "-schedule") }}
               <div class="form-actions">
                 <button class="button">Reschedule</button>
@@ -256,7 +256,7 @@
           <summary class="button">Schedule</summary>
           <form method="post" action="/writeups/{{ id }}/schedule{{ form_query }}">
             {{ error_for([id ~ "-schedule"]) }}
-            <label class="field"><span>Scheduled date</span>{{ date_input(id ~ "-schedule", none) }}</label>
+            <label class="field"><span>Due by</span>{{ date_input(id ~ "-schedule", none) }}</label>
             {{ name_field(id ~ "-schedule") }}
             <button class="button">Schedule</button>
           </form>

@@ -7,7 +7,7 @@ from sqlalchemy import select, text
 from app.main import create_app
 from app.models import Aircraft, EventKind, Writeup
 from app.rules import Severity, Status
-from tests.common import FILING, NOW, TOMORROW, YESTERDAY, file
+from tests.common import FILING, NOW, TOMORROW, YESTERDAY, act, file
 
 NEXT_WEEK = date(2026, 6, 22)
 
@@ -17,13 +17,6 @@ def client(engine, session):
     session.add(Aircraft(tail_number="N101TG"))
     session.commit()
     return TestClient(create_app(engine, clock=lambda: NOW), follow_redirects=False)
-
-
-def act(client, writeup_id, action, expected=303, **data):
-    data.setdefault("actor", "Sam Okafor")
-    response = client.post(f"/writeups/{writeup_id}/{action}", data=data)
-    assert response.status_code == expected, response.text
-    return response
 
 
 def scheduled(client, when=TOMORROW):

@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 from app.main import create_app
 from app.models import Aircraft
-from tests.common import NOW, TOMORROW, file
+from tests.common import NOW, TOMORROW, act, file
 
 
 @pytest.fixture
@@ -138,3 +138,24 @@ def test_row_marks_an_overdue_writeup(client):
     file(client, scheduled_date=TOMORROW.isoformat())
     client.app.state.clock = lambda: NOW + timedelta(days=2)
     assert '<span class="due due-overdue">Due 16 Jun 2026</span>' in page(client)
+
+
+def test_the_date_is_called_due_by_wherever_it_is_set_or_shown(client):
+    file(client, scheduled_date=TOMORROW.isoformat())
+    html = page(client, "/?aircraft=N101TG")
+    assert "Due by (optional)" in html
+    assert "Scheduled date" not in html
+    assert ">Due 16 Jun 2026</summary>" in html
+    assert "Scheduled, due by 16 Jun 2026" in html
+
+
+def test_past_due_date_says_so(client):
+    file(client)
+    response = act(client, 1, "schedule", expected=400, scheduled_date="2026-06-14")
+    assert "The due date can&#39;t be in the past." in response.text
+
+
+def test_missing_due_date_says_so(client):
+    file(client)
+    response = act(client, 1, "schedule", expected=400)
+    assert "Due date is required." in response.text
