@@ -179,9 +179,9 @@ textarea { resize: vertical; width: 100%; }
 .status-cleared { color: var(--cleared); }
 
 /* A fixed severity column, so a wrapped description never reads as a second write-up. */
-.row-writeups { list-style: none; padding: 0; margin-top: 0.5rem; display: grid; gap: 0.3rem; }
+.row-writeups { list-style: none; padding: 0; display: grid; gap: 0.3rem; }
 .row-writeups li { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); align-items: baseline; gap: 0.5rem; max-width: 56ch; }
-.no-writeups { color: var(--muted); font-size: 14px; margin-top: 0.5rem; }
+.no-writeups { color: var(--muted); font-size: 14px; }
 
 .severity { font-size: 11px; color: var(--muted); }
 .severity-high { color: var(--grounded); }

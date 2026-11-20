@@ -83,7 +83,7 @@
 
     <table class="fleet">
       <thead>
-        <tr><th scope="col">Aircraft</th><th scope="col">Status and open write-ups</th><th scope="col">Attention</th></tr>
+        <tr><th scope="col">Aircraft</th><th scope="col">Open write-ups</th><th scope="col">Attention</th></tr>
       </thead>
       {% if query and not board.grounded and not board.cleared %}
       <tbody><tr><td colspan="3" class="empty">No aircraft match “{{ query }}”.</td></tr></tbody>
@@ -103,7 +103,6 @@
         <tr class="aircraft"{% if aircraft and aircraft.id == row.aircraft.id %} aria-current="true"{% endif %}>
           <th scope="row" class="tail"><a href="{{ link(tail=tail) }}">{{ tail }}</a></th>
           <td>
-            <span class="status status-{{ key }}">{{ label }}</span>
             {% if row.open_writeups %}
             <ul class="row-writeups">
               {% for writeup in row.open_writeups %}
