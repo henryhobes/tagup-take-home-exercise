@@ -102,6 +102,7 @@
 ### 29. Where are an aircraft's details?
 **Decision:** Selecting an aircraft opens a sidebar beside the board on desktop. On a narrow screen the same URL shows only the aircraft, with a link back to the fleet. The panel holds the clearance status, a Create Write-Up button, one card per open write-up with its actions, and one timeline of every event across all of that aircraft's write-ups. Closed write-ups appear only in the timeline. Tail-number search on the board is a plain GET form.
 **Why:** One URL and one template serve both layouts without JavaScript (A13). A single timeline per aircraft answers "what happened to this plane" better than a history per card.
+**Note:** Searching, and clearing a search, keep the open aircraft's panel. They first closed it, the only controls on the board that did; the panel now closes only from its own Close link.
 
 Each write-up card is edited in place: the severity, the date and the description are each the control that changes them, opening a small form where they sit. The card's one button is the next step for its status (Schedule, Start work or Resolve), and Cancel is a quiet link. Status is a muted chip; the date, or Needs scheduling, sits in the top-right corner. A first version put every action in a list of disclosures under each card, which read as a settings page rather than a work item.
 

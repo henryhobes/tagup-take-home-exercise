@@ -77,8 +77,9 @@
       <label for="q">Tail number</label>
       <input id="q" name="q" value="{{ query }}" autocomplete="off" spellcheck="false">
       {% for group in hidden | sort %}<input type="hidden" name="hide" value="{{ group }}">{% endfor %}
+      {% if aircraft %}<input type="hidden" name="aircraft" value="{{ aircraft.tail_number }}">{% endif %}
       <button class="button">Search</button>
-      {% if query %}<a href="{{ link(query='', tail='') }}">Clear search</a>{% endif %}
+      {% if query %}<a href="{{ link(query='') }}">Clear search</a>{% endif %}
     </form>
 
     <table class="fleet">

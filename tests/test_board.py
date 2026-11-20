@@ -116,3 +116,9 @@ def test_action_on_a_closed_writeup_still_shows_why(client):
     assert response.status_code == 400
     assert "Write-up #1 has changed since this page loaded." in response.text
     assert "A canceled write-up" in response.text
+
+
+def test_search_and_clearing_it_keep_the_open_aircraft(client):
+    html = page(client, "/?q=101&aircraft=N202TG")
+    assert '<input type="hidden" name="aircraft" value="N202TG">' in html
+    assert '<a href="/?aircraft=N202TG">Clear search</a>' in html
