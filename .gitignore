@@ -1,3 +1,9 @@
 .DS_Store
 # Exercise brief (not part of the submission)
 *.pdf
+
+# Python
+__pycache__/
+.venv/
+.pytest_cache/
+*.db
