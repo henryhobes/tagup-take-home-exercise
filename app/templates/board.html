@@ -13,14 +13,14 @@
 {%- macro name_field(form_id, field="actor") -%}
 <label class="field">
   <span>Your name</span>
-  <input name="{{ field }}" required autocomplete="name" value="{{ kept(form_id, field) }}">
+  <input name="{{ field }}" required maxlength="{{ NAME_LIMIT }}" autocomplete="name" value="{{ kept(form_id, field) }}">
 </label>
 {%- endmacro -%}
 
 {%- macro note_field(form_id, label) -%}
 <label class="field">
   <span>{{ label }}</span>
-  <textarea name="note" rows="2" required>{{ kept(form_id, 'note') }}</textarea>
+  <textarea name="note" rows="2" required maxlength="{{ TEXT_LIMIT }}">{{ kept(form_id, 'note') }}</textarea>
 </label>
 {%- endmacro -%}
 
@@ -174,7 +174,7 @@
         </fieldset>
         <label class="field">
           <span>What's wrong</span>
-          <textarea name="description" rows="3" required>{{ kept("file", "description") }}</textarea>
+          <textarea name="description" rows="3" required maxlength="{{ TEXT_LIMIT }}">{{ kept("file", "description") }}</textarea>
         </label>
         <label class="field">
           <span>Due by (optional)</span>
@@ -244,7 +244,7 @@
           {{ error_for([id ~ "-description"]) }}
           <label class="field">
             <span>Description</span>
-            <textarea name="description" rows="3" required>{{ kept(id ~ '-description', 'description', writeup.description) }}</textarea>
+            <textarea name="description" rows="3" required maxlength="{{ TEXT_LIMIT }}">{{ kept(id ~ '-description', 'description', writeup.description) }}</textarea>
           </label>
           {{ name_field(id ~ "-description") }}
           <button class="button">Save description</button>

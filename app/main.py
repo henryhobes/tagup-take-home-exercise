@@ -16,7 +16,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app import service
 from app.models import Aircraft, Writeup
-from app.rules import RuleViolation, Severity, WrongStatus, is_overdue
+from app.rules import NAME_LIMIT, TEXT_LIMIT, RuleViolation, Severity, WrongStatus, is_overdue
 
 HERE = Path(__file__).parent
 
@@ -53,6 +53,8 @@ templates = Jinja2Templates(directory=HERE / "templates")
 templates.env.filters["day"] = day
 templates.env.filters["local_time"] = local_time
 templates.env.globals["Severity"] = Severity
+templates.env.globals["NAME_LIMIT"] = NAME_LIMIT
+templates.env.globals["TEXT_LIMIT"] = TEXT_LIMIT
 templates.env.globals["is_overdue"] = is_overdue
 templates.env.globals["filed_severity"] = service.filed_severity
 

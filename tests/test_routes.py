@@ -61,6 +61,13 @@ class TestFile:
         assert client.post("/aircraft/1/writeups", data=FILING | {field: value}).status_code == 400
         assert session.scalars(select(Writeup)).all() == []
 
+    @pytest.mark.parametrize("field, length", [("description", 1001), ("reported_by", 101)])
+    def test_overlong_field_is_rejected(self, client, session, field, length):
+        response = client.post("/aircraft/1/writeups", data=FILING | {field: "x" * length})
+        assert response.status_code == 400
+        assert f"can&#39;t be longer than {length - 1} characters." in response.text
+        assert session.scalars(select(Writeup)).all() == []
+
     def test_unknown_severity_is_rejected(self, client):
         response = client.post("/aircraft/1/writeups", data=FILING | {"severity": "critical"})
         assert response.status_code == 400
@@ -274,3 +281,12 @@ def test_action_without_a_version_is_rejected(client, session):
 
 def test_unknown_writeup_without_a_version_is_404(client):
     assert client.post("/writeups/999/start", data={"actor": "Sam Okafor"}).status_code == 404
+
+
+@pytest.mark.parametrize("action, field, length", [("resolve", "note", 1001), ("resolve", "actor", 101), ("description", "description", 1001)])
+def test_overlong_field_on_an_action_is_rejected(client, session, action, field, length):
+    writeup_id = in_progress(client)
+    form = {"note": "Replaced the pane", "description": "Cracked left cockpit window"} | {field: "x" * length}
+    act(client, writeup_id, action, expected=400, **form)
+    assert load(session, writeup_id).status == Status.in_progress
+    assert events(session, writeup_id)[-1].kind == EventKind.started

@@ -5,7 +5,7 @@ from sqlalchemy import select
 
 from app import rules
 from app.models import Aircraft, EventKind, Writeup, WriteupEvent
-from app.rules import OPEN_STATUSES, Severity, Status, require_text
+from app.rules import OPEN_STATUSES, Severity, Status, require_name, require_text
 
 
 @dataclass
@@ -100,7 +100,7 @@ def by_severity(writeups):
 def file_writeup(session, aircraft_id, reported_by, description, severity, now, scheduled_date=None):
     writeup = Writeup(
         aircraft_id=aircraft_id,
-        reported_by=require_text(reported_by, "Name"),
+        reported_by=require_name(reported_by),
         description=require_text(description, "Description"),
         severity=severity,
         status=Status.unscheduled,
@@ -114,7 +114,7 @@ def file_writeup(session, aircraft_id, reported_by, description, severity, now, 
 
 
 def schedule(session, writeup, actor, new_date, now):
-    actor = require_text(actor, "Name")
+    actor = require_name(actor)
     old_date = writeup.scheduled_date
     kind = EventKind.scheduled if old_date is None else EventKind.rescheduled
     writeup.status = rules.schedule(writeup.status, old_date, new_date, today(now))
@@ -123,7 +123,7 @@ def schedule(session, writeup, actor, new_date, now):
 
 
 def unschedule(session, writeup, actor, now):
-    actor = require_text(actor, "Name")
+    actor = require_name(actor)
     writeup.status = rules.unschedule(writeup.status)
     old_date = writeup.scheduled_date
     writeup.scheduled_date = None
@@ -131,27 +131,27 @@ def unschedule(session, writeup, actor, now):
 
 
 def start(session, writeup, actor, now):
-    actor = require_text(actor, "Name")
+    actor = require_name(actor)
     writeup.status = rules.start(writeup.status)
     _log(session, writeup, EventKind.started, actor, now)
 
 
 def resolve(session, writeup, actor, note, now):
-    actor = require_text(actor, "Name")
+    actor = require_name(actor)
     note = require_text(note, "What was done")
     writeup.status = rules.resolve(writeup.status)
     _log(session, writeup, EventKind.resolved, actor, now, note=note)
 
 
 def cancel(session, writeup, actor, note, now):
-    actor = require_text(actor, "Name")
+    actor = require_name(actor)
     note = require_text(note, "Reason")
     writeup.status = rules.cancel(writeup.status)
     _log(session, writeup, EventKind.canceled, actor, now, note=note)
 
 
 def change_severity(session, writeup, actor, severity, note, now):
-    actor = require_text(actor, "Name")
+    actor = require_name(actor)
     note = require_text(note, "Reason")
     old = writeup.severity
     rules.change_severity(writeup.status, old, severity)
@@ -160,7 +160,7 @@ def change_severity(session, writeup, actor, severity, note, now):
 
 
 def edit_description(session, writeup, actor, description, now):
-    actor = require_text(actor, "Name")
+    actor = require_name(actor)
     description = require_text(description, "Description")
     old = writeup.description
     rules.edit_description(writeup.status, old, description)

@@ -169,3 +169,10 @@ def test_every_writeup_form_carries_the_version_it_was_rendered_with(client):
     act(client, 1, "description", description="Cracked left cockpit window")
     html = page(client, "/?aircraft=N101TG")
     assert html.count('<input type="hidden" name="version" value="2">') == html.count(' action="/writeups/1/')
+
+
+def test_inputs_stop_at_the_same_limits_the_server_enforces(client):
+    file(client)
+    html = page(client, "/?aircraft=N101TG")
+    assert html.count('maxlength="100"') == html.count("<span>Your name</span>")
+    assert html.count('maxlength="1000"') == html.count("<textarea")

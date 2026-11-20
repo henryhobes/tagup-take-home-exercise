@@ -81,11 +81,21 @@ def edit_description(status, current, new):
         raise RuleViolation("The description hasn't changed.")
 
 
-def require_text(value, field):
+NAME_LIMIT = 100
+TEXT_LIMIT = 1000
+
+
+def require_text(value, field, limit=TEXT_LIMIT):
     value = value.strip()
     if not value:
         raise RuleViolation(f"{field} is required.")
+    if len(value) > limit:
+        raise RuleViolation(f"{field} can't be longer than {limit} characters.")
     return value
+
+
+def require_name(value):
+    return require_text(value, "Name", NAME_LIMIT)
 
 
 def _require_open(status):

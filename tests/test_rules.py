@@ -125,3 +125,16 @@ class TestRequireText:
     def test_blank_is_rejected(self, value):
         with pytest.raises(RuleViolation, match="Name"):
             rules.require_text(value, "Name")
+
+    def test_longest_allowed_is_accepted(self):
+        assert rules.require_name("x" * rules.NAME_LIMIT) == "x" * rules.NAME_LIMIT
+        assert rules.require_text("x" * rules.TEXT_LIMIT, "Description") == "x" * rules.TEXT_LIMIT
+
+    def test_too_long_is_rejected(self):
+        with pytest.raises(RuleViolation, match="Name can't be longer than 100 characters."):
+            rules.require_name("x" * 101)
+        with pytest.raises(RuleViolation, match="Description can't be longer than 1000 characters."):
+            rules.require_text("x" * 1001, "Description")
+
+    def test_surrounding_whitespace_does_not_count_toward_the_limit(self):
+        assert rules.require_name(" " + "x" * 100 + " ") == "x" * 100
