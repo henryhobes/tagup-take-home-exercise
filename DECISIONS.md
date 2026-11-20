@@ -133,8 +133,9 @@ Each write-up card is edited in place: the severity, the date and the descriptio
 **Why:** Each action has different rules and inputs, so separate routes keep validation explicit. A generic edit route would have to infer what happened. Nothing in the brief needs JSON.
 
 ### A5. How does someone run it?
-**Decision:** One `uv run` command. It seeds demo data when the DB file doesn't exist; a reset command wipes and reseeds.
+**Decision:** One `uv run` command. It seeds demo data when the database has no aircraft; a reset command wipes and reseeds.
 **Why:** uv fetches the right Python and dependencies itself, which avoids the most common way take-homes fail to start. No external services.
+**Note:** Seeding first keyed on the DB file not existing. The tables are created before the seed runs, so a first run that was interrupted left a file with an empty fleet that no later run would fill.
 
 ### A6. How is testing set up?
 **Decision:** pytest in two layers. Unit tests on plain Python rule functions (transitions, grounding, overdue, date checks), written first. Route tests through TestClient on a fresh SQLite database per test. No browser tests; the UI is checked by hand.

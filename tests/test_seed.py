@@ -6,8 +6,8 @@ from sqlalchemy import select
 from app import rules, service
 from app.models import EventKind, Writeup, WriteupEvent
 from app.rules import OPEN_STATUSES, Severity, Status
-from app.seed import seed
-from tests.common import ZONE
+from app.seed import seed, seed_if_empty
+from tests.common import NOW, ZONE
 
 
 # The seed runs at whatever time the app first starts, so try several local times of day,
@@ -66,3 +66,9 @@ def test_every_aircraft_situation(session, now):
     assert any(
         any(w.severity == Severity.high for w in s.aircraft.writeups) and not s.grounding for s in cleared
     )
+
+
+def test_seed_if_empty_fills_an_empty_database_once(session):
+    seed_if_empty(session, NOW)
+    seed_if_empty(session, NOW)
+    assert len(service.fleet_status(session)) == 30

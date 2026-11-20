@@ -1,5 +1,7 @@
 from datetime import timedelta
 
+from sqlalchemy import select
+
 from app import service
 from app.models import Aircraft
 from app.rules import Severity
@@ -9,6 +11,11 @@ FIRST_OFFICER = "F/O Marcus Hale"
 MECHANIC = "Sam Okafor"
 LEAD_MECHANIC = "Lee Park"
 CONTROLLER = "Jordan Bell"
+
+
+def seed_if_empty(session, now):
+    if session.scalar(select(Aircraft.id).limit(1)) is None:
+        seed(session, now)
 
 
 def seed(session, now):
