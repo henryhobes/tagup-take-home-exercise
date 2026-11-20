@@ -79,7 +79,8 @@ class TestFile:
         assert session.scalars(select(Writeup)).all() == []
 
     def test_unknown_aircraft_is_404(self, client):
-        assert client.post("/aircraft/999/writeups", data=FILING).status_code == 404
+        response = client.post("/aircraft/999/writeups", data=FILING)
+        assert (response.status_code, response.text) == (404, "Aircraft not found")
 
 
 class TestSchedule:
@@ -209,7 +210,18 @@ def test_redirect_keeps_search_and_hidden_groups(client):
 
 
 def test_unknown_writeup_is_404(client):
-    act(client, 999, "start", expected=404)
+    assert act(client, 999, "start", expected=404).text == "Write-up not found"
+
+
+@pytest.mark.parametrize("writeup_id", ["abc", 10**30])
+def test_id_that_cannot_be_a_writeup_is_404(client, writeup_id):
+    response = client.post(f"/writeups/{writeup_id}/start", data={"actor": "Sam Okafor", "version": 1})
+    assert (response.status_code, response.text) == (404, "Not found")
+
+
+def test_wrong_method_is_plain_text_like_every_other_error(client):
+    response = client.get("/writeups/1/start")
+    assert (response.status_code, response.text) == (405, "Method Not Allowed")
 
 
 def test_file_sent_as_a_text_field_is_rejected(client):

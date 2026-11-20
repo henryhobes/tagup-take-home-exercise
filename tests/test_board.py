@@ -58,7 +58,14 @@ def test_timeline_shows_the_severity_a_writeup_was_filed_with(client):
 
 
 def test_unknown_aircraft_is_404(client):
-    assert client.get("/?aircraft=N999TG").status_code == 404
+    response = client.get("/?aircraft=N999TG")
+    assert (response.status_code, response.text) == (404, "Aircraft not found")
+
+
+def test_tail_in_the_url_matches_in_any_case_like_search_does(client):
+    html = page(client, "/?aircraft=n202tg")
+    assert '<h2 id="panel-title">N202TG</h2>' in html
+    assert "aircraft=n202tg" not in html
 
 
 def test_filing_form_has_no_default_severity(client):

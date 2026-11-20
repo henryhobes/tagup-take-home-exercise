@@ -4,14 +4,15 @@ from pathlib import Path
 from typing import Annotated
 from urllib.parse import urlencode
 
-from fastapi import Depends, FastAPI, Form, HTTPException, Request
+from fastapi import Depends, FastAPI, Form, HTTPException, Path as PathParam, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import PlainTextResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.exc import StaleDataError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app import service
 from app.models import Aircraft, Writeup
@@ -68,13 +69,15 @@ def get_now(request: Request):
 DbSession = Annotated[Session, Depends(get_session)]
 Now = Annotated[datetime, Depends(get_now)]
 Text = Annotated[str, Form()]
+# SQLite can't bind an integer wider than 64 bits, so a larger id is rejected as a bad path.
+RowId = Annotated[int, PathParam(le=2**63 - 1)]
 
 
 class StalePage(Exception):
     pass
 
 
-def load_writeup(writeup_id: int, session: DbSession, version: Annotated[int, Form()]):
+def load_writeup(writeup_id: RowId, session: DbSession, version: Annotated[int, Form()]):
     """Every write-up form sends back the version it was rendered with, so an action
     taken from a page that is out of date is refused rather than applied to a write-up
     the person hasn't seen."""
@@ -129,9 +132,10 @@ def render_board(request, session, now, tail="", failure=None):
     query, hidden = board_state(request)
     aircraft = None
     if tail:
-        aircraft = session.scalar(select(Aircraft).where(Aircraft.tail_number == tail))
+        aircraft = session.scalar(select(Aircraft).where(func.lower(Aircraft.tail_number) == tail.lower()))
         if aircraft is None:
             raise HTTPException(404, "Aircraft not found")
+        tail = aircraft.tail_number
     today = service.today(now)
     context = {
         "board": service.board(session, today, query),
@@ -181,6 +185,11 @@ def create_app(engine, clock=local_now):
     app.state.clock = clock
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
 
+    @app.exception_handler(StarletteHTTPException)
+    async def http_error(request, exc):
+        # FastAPI's default answers in JSON; every other error here is text or the page itself.
+        return PlainTextResponse(exc.detail, status_code=exc.status_code, headers=exc.headers)
+
     @app.exception_handler(RuleViolation)
     async def rule_violation(request, exc):
         return await render_failure(request, str(exc), stale=isinstance(exc, WrongStatus))
@@ -210,7 +219,7 @@ def create_app(engine, clock=local_now):
 
     @app.post("/aircraft/{aircraft_id}/writeups")
     def file_writeup(
-        request: Request, aircraft_id: int, session: DbSession, now: Now, severity: Annotated[Severity, Form()],
+        request: Request, aircraft_id: RowId, session: DbSession, now: Now, severity: Annotated[Severity, Form()],
         reported_by: Text = "", description: Text = "", scheduled_date: Annotated[date | None, Form()] = None,
     ):
         if session.get(Aircraft, aircraft_id) is None:
