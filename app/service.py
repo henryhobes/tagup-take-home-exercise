@@ -41,7 +41,7 @@ def fleet_status(session):
     by_aircraft = {plane.id: [] for plane in aircraft}
     for writeup in open_writeups:
         by_aircraft[writeup.aircraft_id].append(writeup)
-    return [AircraftStatus(plane, by_aircraft[plane.id]) for plane in aircraft]
+    return [AircraftStatus(plane, by_severity(by_aircraft[plane.id])) for plane in aircraft]
 
 
 @dataclass
@@ -85,14 +85,15 @@ def timeline(aircraft):
 
 
 def open_writeups(aircraft):
+    return by_severity(w for w in aircraft.writeups if w.status in OPEN_STATUSES)
+
+
+def by_severity(writeups):
     severity_rank = list(Severity).index
-    return sorted(
-        (w for w in aircraft.writeups if w.status in OPEN_STATUSES),
-        key=lambda w: (severity_rank(w.severity), w.id),
-    )
+    return sorted(writeups, key=lambda w: (severity_rank(w.severity), w.id))
 
 
-def file_writeup(session, aircraft_id, reported_by, description, severity, now):
+def file_writeup(session, aircraft_id, reported_by, description, severity, now, scheduled_date=None):
     writeup = Writeup(
         aircraft_id=aircraft_id,
         reported_by=require_text(reported_by, "Name"),
@@ -103,6 +104,8 @@ def file_writeup(session, aircraft_id, reported_by, description, severity, now):
     )
     session.add(writeup)
     session.flush()
+    if scheduled_date is not None:
+        schedule(session, writeup, reported_by, scheduled_date, now)
     return writeup
 
 

@@ -80,3 +80,20 @@ def test_failed_filing_keeps_what_was_typed(client):
     assert response.status_code == 400
     assert "Severity is required." in response.text
     assert "Cracked window" in response.text
+
+
+def test_hidden_group_keeps_its_header_and_a_show_link(client):
+    html = page(client, "/?hide=cleared")
+    assert "N202TG" not in html
+    assert "Show" in html
+
+
+def test_links_keep_search_and_hidden_groups(client):
+    html = page(client, "/?q=N&hide=grounded")
+    assert "/?q=N&amp;hide=grounded&amp;aircraft=N101TG" in html
+
+
+def test_cleared_row_lists_its_open_writeups(client):
+    file(client, severity="medium", description="Seat 3C recline stuck")
+    html = page(client)
+    assert "Seat 3C recline stuck" in html

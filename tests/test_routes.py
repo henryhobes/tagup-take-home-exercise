@@ -80,6 +80,18 @@ class TestFile:
         assert response.status_code == 400
         assert "Severity is invalid." in response.text
 
+    def test_with_date_files_it_scheduled_by_the_reporter(self, client, session):
+        writeup_id = file(client, scheduled_date=TOMORROW.isoformat())
+        writeup = load(session, writeup_id)
+        assert (writeup.status, writeup.scheduled_date) == (Status.scheduled, TOMORROW)
+        [event] = events(session, writeup_id)
+        assert (event.kind, event.actor, event.to_value) == (EventKind.scheduled, "Dana Ruiz", TOMORROW.isoformat())
+
+    def test_with_past_date_files_nothing(self, client, session):
+        response = client.post("/aircraft/1/writeups", data=FILING | {"scheduled_date": YESTERDAY.isoformat()})
+        assert response.status_code == 400
+        assert session.scalars(select(Writeup)).all() == []
+
     def test_unknown_aircraft_is_404(self, client):
         assert client.post("/aircraft/999/writeups", data=FILING).status_code == 404
 
@@ -201,6 +213,12 @@ def test_blank_actor_is_rejected(client, session, action):
     writeup_id = scheduled(client)
     act(client, writeup_id, action, expected=400, actor="  ")
     assert load(session, writeup_id).status == Status.scheduled
+
+
+def test_redirect_keeps_search_and_hidden_groups(client):
+    writeup_id = scheduled(client)
+    response = client.post(f"/writeups/{writeup_id}/start?q=N1&hide=cleared", data={"actor": "Sam Okafor"})
+    assert response.headers["location"] == f"/?q=N1&hide=cleared&aircraft=N101TG#writeup-{writeup_id}"
 
 
 def test_unknown_writeup_is_404(client):

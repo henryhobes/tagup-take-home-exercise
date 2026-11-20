@@ -95,15 +95,17 @@
 **Why:** The brief's core promise is showing which aircraft are cleared to fly. What can't fly matters as much as what can, so neither state is left to be inferred.
 
 ### 28. How is the fleet board laid out?
-**Decision:** One table with two row groups, Grounded first, then Cleared, each with a count and an explicit empty message. Columns: tail number, status in words, open write-up count, Overdue and Needs scheduling markers, and on grounded rows a short reason ("1 High: Cracked windshield"). Within each group, overdue first, then needs scheduling, then earliest scheduled date, then tail number.
-**Why:** Started as two separate sections with each aircraft's Highs listed inline. Once aircraft details moved into a sidebar (29), the inline lists weren't needed and would have been cramped, so one table keeps columns aligned and the phone layout trivial. A Needs scheduling marker is there because the brief says every issue needs scheduling, and an unscheduled Medium would otherwise be invisible on the board.
+**Decision:** One table with two row groups, Grounded first, then Cleared, each with a count and an explicit empty message. Each group can be hidden or shown; both start shown. Every row lists all its open write-ups, Highs first, each behind a fixed-width severity label, plus Overdue and Needs scheduling markers. Within each group, overdue first, then needs scheduling, then earliest scheduled date, then tail number.
+**Why:** Started as two separate sections with each aircraft's Highs listed inline. Once aircraft details moved into a sidebar (29), the inline lists weren't needed and would have been cramped, so one table keeps columns aligned and the phone layout trivial. A Needs scheduling marker is there because the brief says every issue needs scheduling, and an unscheduled Medium would otherwise be invisible on the board. Listing every open write-up replaced an open-count column; the fixed severity column keeps a wrapped description from reading as a second write-up. Hiding a group lets a large Cleared list get out of the way. Which groups are hidden, like the search, lives in the URL and rides along on every link and form, so it survives opening aircraft and taking actions.
 
 ### 29. Where are an aircraft's details?
 **Decision:** Selecting an aircraft opens a sidebar beside the board on desktop. On a narrow screen the same URL shows only the aircraft, with a link back to the fleet. The panel holds the clearance status, a Create Write-Up button, one card per open write-up with its actions, and one timeline of every event across all of that aircraft's write-ups. Closed write-ups appear only in the timeline. Tail-number search on the board is a plain GET form.
 **Why:** One URL and one template serve both layouts without JavaScript (A13). A single timeline per aircraft answers "what happened to this plane" better than a history per card.
 
+Each write-up card is edited in place: the severity, the date and the description are each the control that changes them, opening a small form where they sit. The card's one button is the next step for its status (Schedule, Start work or Resolve), and Cancel is a quiet link. Status is a muted chip; the date, or Needs scheduling, sits in the top-right corner. A first version put every action in a list of disclosures under each card, which read as a settings page rather than a work item.
+
 ### 30. How is a write-up filed?
-**Decision:** From a Create Write-Up button in the aircraft panel, with the form shown inline in the panel. A modal is a later polish item, only if time remains. Severity has no default; the reporter must choose.
+**Decision:** From a Create Write-Up button in the aircraft panel, with the form shown inline in the panel. A modal is a later polish item, only if time remains. Severity has no default; the reporter must choose. A scheduled date can be given while filing; the write-up is then filed and scheduled in one step, and the audit log records the reporter as the one who scheduled it.
 **Why:** The button lives where the aircraft is already known, so the existing per-aircraft route works unchanged. A preselected severity would let someone file a grounding defect as Medium by accident.
 
 ### 31. What does the app look like?
@@ -161,5 +163,6 @@
 **Why:** The fleet page filters by status alone, which the (aircraft, status) index from the reviewed model can't serve.
 
 ### A13. How much frontend tooling?
-**Decision:** One hand-written CSS file and no JavaScript at all. Disclosure uses native HTML (`<details>`, separate pages).
-**Why:** Follows from A2. Every action is already a plain form POST, so a script would add a second way for things to break without enabling anything the brief needs.
+**Decision:** One hand-written CSS file. Disclosure uses native HTML (`<details>`, separate pages). One small script keeps the board's scroll position across page loads; nothing depends on it.
+**Why:** Follows from A2. Every action is a plain form POST, so a script would add a second way for things to break. The exception: every click loads a new page, and without a script the board jumped back to the top each time, which made a long fleet list unusable. The script only restores the scroll position; with it off, every action still works.
+**Note:** Started as zero JavaScript; changed after trying the board.

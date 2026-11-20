@@ -1,36 +1,19 @@
-{%- macro aircraft_url(tail) -%}
-/?{% if query %}q={{ query | urlencode }}&amp;{% endif %}aircraft={{ tail }}#row-{{ tail }}
+{%- macro failed(form_ids) -%}
+{{- "yes" if failure and failure.form_id in form_ids else "" -}}
 {%- endmacro -%}
 
 {%- macro kept(form_id, field, default="") -%}
 {{ failure.values.get(field, default) if failure and failure.form_id == form_id else default }}
 {%- endmacro -%}
 
-{%- macro error_for(form_id) -%}
-{% if failure and failure.form_id == form_id %}<p class="error" role="alert">{{ failure.message }}</p>{% endif %}
+{%- macro error_for(form_ids) -%}
+{% if failed(form_ids) %}<p class="error" role="alert">{{ failure.message }}</p>{% endif %}
 {%- endmacro -%}
 
-{%- macro action(writeup, name, label, button) -%}
-{% set form_id = writeup.id ~ "-" ~ name %}
-<details class="action"{% if failure and failure.form_id == form_id %} open{% endif %}>
-  <summary>{{ label }}</summary>
-  <form method="post" action="/writeups/{{ writeup.id }}/{{ name }}">
-    {{ error_for(form_id) }}
-    {{ caller(form_id) }}
-    <label class="field">
-      <span>Your name</span>
-      <input name="actor" required autocomplete="name" value="{{ kept(form_id, 'actor') }}">
-    </label>
-    <button class="button">{{ button }}</button>
-  </form>
-</details>
-{%- endmacro -%}
-
-{%- macro date_field(form_id, current) -%}
+{%- macro name_field(form_id, field="actor") -%}
 <label class="field">
-  <span>Finish by</span>
-  <input type="date" name="scheduled_date" required min="{{ today.isoformat() }}"
-    value="{{ kept(form_id, 'scheduled_date', current.isoformat() if current else '') }}">
+  <span>Your name</span>
+  <input name="{{ field }}" required autocomplete="name" value="{{ kept(form_id, field) }}">
 </label>
 {%- endmacro -%}
 
@@ -41,12 +24,25 @@
 </label>
 {%- endmacro -%}
 
+{%- macro date_input(form_id, current, required=true) -%}
+<input type="date" name="scheduled_date" min="{{ today.isoformat() }}"{% if required %} required{% endif %}
+  value="{{ kept(form_id, 'scheduled_date', current.isoformat() if current else '') }}">
+{%- endmacro -%}
+
+{#- One editable part of a card: the summary is the thing itself, and opening it shows its form. -#}
+{%- macro edit(writeup, name, kind, form_ids=none) -%}
+{% set form_ids = form_ids or [writeup.id ~ "-" ~ name] %}
+<details class="edit edit-{{ kind }}" name="writeup-{{ writeup.id }}"{% if failed(form_ids) %} open{% endif %}>
+  {{ caller() }}
+</details>
+{%- endmacro -%}
+
 {%- macro event_text(entry) -%}
 {% set event = entry.event %}
 {% if event is none %}Filed as {{ entry.writeup.severity | capitalize }}
-{% elif event.kind == "scheduled" %}Scheduled to finish by {{ event.to_value | day }}
+{% elif event.kind == "scheduled" %}Scheduled for {{ event.to_value | day }}
 {% elif event.kind == "rescheduled" %}Rescheduled from {{ event.from_value | day }} to {{ event.to_value | day }}
-{% elif event.kind == "unscheduled" %}Unscheduled; was due {{ event.from_value | day }}
+{% elif event.kind == "unscheduled" %}Unscheduled; was {{ event.from_value | day }}
 {% elif event.kind == "started" %}Work started
 {% elif event.kind == "resolved" %}Resolved
 {% elif event.kind == "canceled" %}Canceled
@@ -80,35 +76,48 @@
     <form class="search" method="get" action="/" role="search">
       <label for="q">Tail number</label>
       <input id="q" name="q" value="{{ query }}" autocomplete="off" spellcheck="false">
+      {% for group in hidden | sort %}<input type="hidden" name="hide" value="{{ group }}">{% endfor %}
       <button class="button">Search</button>
-      {% if query %}<a href="/">Clear search</a>{% endif %}
+      {% if query %}<a href="{{ link(query='', tail='') }}">Clear search</a>{% endif %}
     </form>
 
     <table class="fleet">
       <thead>
-        <tr><th scope="col">Aircraft</th><th scope="col">Status</th><th scope="col" class="num">Open</th><th scope="col">Attention</th></tr>
+        <tr><th scope="col">Aircraft</th><th scope="col">Status and open write-ups</th><th scope="col">Attention</th></tr>
       </thead>
       {% if query and not board.grounded and not board.cleared %}
-      <tbody><tr><td colspan="4" class="empty">No aircraft match “{{ query }}”.</td></tr></tbody>
+      <tbody><tr><td colspan="3" class="empty">No aircraft match “{{ query }}”.</td></tr></tbody>
       {% else %}
       {% for key, label, rows in [("grounded", "Grounded", board.grounded), ("cleared", "Cleared", board.cleared)] %}
+      {% set is_hidden = key in hidden %}
       <tbody class="group group-{{ key }}">
-        <tr class="group-head"><th colspan="4" scope="colgroup">{{ label }} <span>{{ rows | length }}</span></th></tr>
+        <tr class="group-head">
+          <th colspan="2" scope="colgroup">{{ label }} <span>{{ rows | length }}</span></th>
+          <td class="toggle">
+            <a href="{{ link(toggle=key) }}" aria-label="{{ 'Show' if is_hidden else 'Hide' }} {{ key }} aircraft">{{ "Show" if is_hidden else "Hide" }}</a>
+          </td>
+        </tr>
+        {% if not is_hidden %}
         {% for row in rows %}
         {% set tail = row.aircraft.tail_number %}
-        <tr id="row-{{ tail }}"{% if aircraft and aircraft.id == row.aircraft.id %} aria-current="true"{% endif %}>
-          <th scope="row" class="tail"><a href="{{ aircraft_url(tail) }}">{{ tail }}</a></th>
+        <tr{% if aircraft and aircraft.id == row.aircraft.id %} aria-current="true"{% endif %}>
+          <th scope="row" class="tail"><a href="{{ link(tail=tail) }}">{{ tail }}</a></th>
           <td>
             {% if row.cleared %}
             <span class="status status-cleared">Cleared</span>
             {% else %}
             <span class="status status-grounded">Grounded</span>
-            <ul class="reasons">
-              {% for writeup in row.grounding %}<li>High: {{ writeup.description }}</li>{% endfor %}
+            {% endif %}
+            {% if row.open_writeups %}
+            <ul class="row-writeups">
+              {% for writeup in row.open_writeups %}
+              <li><span class="severity severity-{{ writeup.severity }}">{{ writeup.severity }}</span><span>{{ writeup.description }}</span></li>
+              {% endfor %}
             </ul>
+            {% else %}
+            <p class="no-writeups">No open write-ups</p>
             {% endif %}
           </td>
-          <td class="num">{{ row.open_writeups | length or "None" }}</td>
           <td class="attention">
             {%- if row.is_overdue(today) or row.needs_scheduling -%}
             <div class="flags">
@@ -119,8 +128,9 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="4" class="empty">{% if query %}No {{ key }} aircraft match “{{ query }}”.{% else %}No aircraft {{ key }}.{% endif %}</td></tr>
+        <tr><td colspan="3" class="empty">{% if query %}No {{ key }} aircraft match “{{ query }}”.{% else %}No aircraft {{ key }}.{% endif %}</td></tr>
         {% endfor %}
+        {% endif %}
       </tbody>
       {% endfor %}
       {% endif %}
@@ -129,7 +139,7 @@
 
   {% if aircraft %}
   <aside class="panel" aria-labelledby="panel-title">
-    <a class="panel-close" href="/{% if query %}?q={{ query | urlencode }}{% endif %}#row-{{ aircraft.tail_number }}">
+    <a class="panel-close" href="{{ link(tail='') }}">
       <span class="wide-only">Close</span><span class="narrow-only">Back to fleet</span>
     </a>
 
@@ -144,10 +154,10 @@
       {% endif %}
     </header>
 
-    <details class="file-writeup"{% if failure and failure.form_id == "file" %} open{% endif %}>
+    <details class="file-writeup"{% if failed(["file"]) %} open{% endif %}>
       <summary class="button">Create write-up</summary>
-      <form method="post" action="/aircraft/{{ aircraft.id }}/writeups">
-        {{ error_for("file") }}
+      <form method="post" action="/aircraft/{{ aircraft.id }}/writeups{{ form_query }}">
+        {{ error_for(["file"]) }}
         <fieldset class="field">
           <legend>Severity</legend>
           <div class="choices">
@@ -161,57 +171,120 @@
           <textarea name="description" rows="3" required>{{ kept("file", "description") }}</textarea>
         </label>
         <label class="field">
-          <span>Your name</span>
-          <input name="reported_by" required autocomplete="name" value="{{ kept('file', 'reported_by') }}">
+          <span>Scheduled date (optional)</span>
+          {{ date_input("file", none, required=false) }}
         </label>
-        <button class="button">File write-up</button>
+        {{ name_field("file", "reported_by") }}
+        <button class="button">Submit</button>
       </form>
     </details>
 
     <section class="open-writeups" aria-labelledby="open-title">
       <h3 id="open-title">Open write-ups <span>{{ status.open_writeups | length }}</span></h3>
       {% for writeup in status.open_writeups %}
-      <article class="writeup severity-{{ writeup.severity }}" id="writeup-{{ writeup.id }}">
-        <header class="writeup-head">
-          <span class="severity">{{ writeup.severity }}</span>
-          <span class="writeup-status">{{ STATUS_LABELS[writeup.status] }}</span>
-          {% if writeup.scheduled_date %}<span>Finish by {{ writeup.scheduled_date | day }}</span>{% endif %}
-          {% if is_overdue(writeup, today) %}<span class="flag">Overdue</span>{% endif %}
-          {% if writeup.status == "unscheduled" %}<span class="flag">Needs scheduling</span>{% endif %}
-        </header>
-        <p class="description">{{ writeup.description }}</p>
-        <p class="meta">#{{ writeup.id }} · reported by {{ writeup.reported_by }}, {{ writeup.reported_at | local_time(now) }}</p>
-
-        <div class="actions">
-          {% if writeup.status == "unscheduled" %}
-            {% call(form_id) action(writeup, "schedule", "Schedule", "Schedule repair") %}{{ date_field(form_id, none) }}{% endcall %}
-          {% elif writeup.status == "scheduled" %}
-            {% call(form_id) action(writeup, "start", "Start work", "Start work") %}{% endcall %}
-            {% call(form_id) action(writeup, "schedule", "Reschedule", "Reschedule") %}{{ date_field(form_id, writeup.scheduled_date) }}{% endcall %}
-            {% call(form_id) action(writeup, "unschedule", "Unschedule", "Unschedule") %}{% endcall %}
-          {% else %}
-            {% call(form_id) action(writeup, "resolve", "Resolve", "Resolve write-up") %}{{ note_field(form_id, "What was done") }}{% endcall %}
-            {% call(form_id) action(writeup, "schedule", "Reschedule", "Reschedule") %}{{ date_field(form_id, writeup.scheduled_date) }}{% endcall %}
-          {% endif %}
-          {% call(form_id) action(writeup, "severity", "Change severity", "Change severity") %}
+      {% set id = writeup.id %}
+      <article class="writeup writeup-{{ writeup.severity }}" id="writeup-{{ id }}">
+        <div class="card-top">
+          {% call edit(writeup, "severity", "severity") %}
+          <summary class="severity severity-{{ writeup.severity }}" aria-label="Severity {{ writeup.severity }}, change it">{{ writeup.severity }}</summary>
+          <form class="popover" method="post" action="/writeups/{{ id }}/severity{{ form_query }}">
+            {{ error_for([id ~ "-severity"]) }}
             <label class="field">
-              <span>New severity</span>
+              <span>Change severity to</span>
               <select name="severity" required>
                 <option value="">Choose</option>
                 {% for severity in ["high", "medium", "low"] if severity != writeup.severity %}
-                <option value="{{ severity }}"{% if kept(form_id, 'severity') == severity %} selected{% endif %}>{{ severity | capitalize }}</option>
+                <option value="{{ severity }}"{% if kept(id ~ '-severity', 'severity') == severity %} selected{% endif %}>{{ severity | capitalize }}</option>
                 {% endfor %}
               </select>
             </label>
-            {{ note_field(form_id, "Reason") }}
+            {{ note_field(id ~ "-severity", "Reason") }}
+            {{ name_field(id ~ "-severity") }}
+            <button class="button">Change severity</button>
+          </form>
           {% endcall %}
-          {% call(form_id) action(writeup, "description", "Edit description", "Save description") %}
-            <label class="field">
-              <span>Description</span>
-              <textarea name="description" rows="3" required>{{ kept(form_id, 'description', writeup.description) }}</textarea>
-            </label>
+
+          <span class="state">{{ STATUS_LABELS[writeup.status] }}</span>
+
+          <div class="corner">
+            {% if is_overdue(writeup, today) %}<span class="flag">Overdue</span>{% endif %}
+            {% if writeup.scheduled_date %}
+            {% call edit(writeup, "schedule", "date", [id ~ "-schedule", id ~ "-unschedule"]) %}
+            <summary class="date" aria-label="Scheduled {{ writeup.scheduled_date | day }}, reschedule">{{ writeup.scheduled_date | day }}</summary>
+            <form class="popover popover-end" method="post" action="/writeups/{{ id }}/schedule{{ form_query }}">
+              {{ error_for([id ~ "-schedule", id ~ "-unschedule"]) }}
+              <label class="field"><span>Reschedule to</span>{{ date_input(id ~ "-schedule", writeup.scheduled_date) }}</label>
+              {{ name_field(id ~ "-schedule") }}
+              <div class="form-actions">
+                <button class="button">Reschedule</button>
+                {% if writeup.status == "scheduled" %}
+                <button class="link-button" formaction="/writeups/{{ id }}/unschedule{{ form_query }}" formnovalidate>Remove date</button>
+                {% endif %}
+              </div>
+            </form>
+            {% endcall %}
+            {% else %}
+            <span class="flag">Needs scheduling</span>
+            {% endif %}
+          </div>
+        </div>
+
+        {% call edit(writeup, "description", "description") %}
+        <summary class="description">{{ writeup.description }}</summary>
+        <form method="post" action="/writeups/{{ id }}/description{{ form_query }}">
+          {{ error_for([id ~ "-description"]) }}
+          <label class="field">
+            <span>Description</span>
+            <textarea name="description" rows="3" required>{{ kept(id ~ '-description', 'description', writeup.description) }}</textarea>
+          </label>
+          {{ name_field(id ~ "-description") }}
+          <button class="button">Save description</button>
+        </form>
+        {% endcall %}
+
+        <p class="meta">#{{ id }} · {{ writeup.reported_by }} · {{ writeup.reported_at | local_time(now) }}</p>
+
+        <div class="card-actions">
+          {% if writeup.status == "unscheduled" %}
+          {% call edit(writeup, "schedule", "step") %}
+          <summary class="button">Schedule</summary>
+          <form method="post" action="/writeups/{{ id }}/schedule{{ form_query }}">
+            {{ error_for([id ~ "-schedule"]) }}
+            <label class="field"><span>Scheduled date</span>{{ date_input(id ~ "-schedule", none) }}</label>
+            {{ name_field(id ~ "-schedule") }}
+            <button class="button">Schedule</button>
+          </form>
           {% endcall %}
-          {% call(form_id) action(writeup, "cancel", "Cancel write-up", "Cancel write-up") %}{{ note_field(form_id, "Reason") }}{% endcall %}
+          {% elif writeup.status == "scheduled" %}
+          {% call edit(writeup, "start", "step") %}
+          <summary class="button">Start work</summary>
+          <form method="post" action="/writeups/{{ id }}/start{{ form_query }}">
+            {{ error_for([id ~ "-start"]) }}
+            {{ name_field(id ~ "-start") }}
+            <button class="button">Start work</button>
+          </form>
+          {% endcall %}
+          {% else %}
+          {% call edit(writeup, "resolve", "step") %}
+          <summary class="button">Resolve</summary>
+          <form method="post" action="/writeups/{{ id }}/resolve{{ form_query }}">
+            {{ error_for([id ~ "-resolve"]) }}
+            {{ note_field(id ~ "-resolve", "What was done") }}
+            {{ name_field(id ~ "-resolve") }}
+            <button class="button">Resolve</button>
+          </form>
+          {% endcall %}
+          {% endif %}
+
+          {% call edit(writeup, "cancel", "cancel") %}
+          <summary class="cancel-link">Cancel write-up</summary>
+          <form class="popover popover-end" method="post" action="/writeups/{{ id }}/cancel{{ form_query }}">
+            {{ error_for([id ~ "-cancel"]) }}
+            {{ note_field(id ~ "-cancel", "Why cancel it") }}
+            {{ name_field(id ~ "-cancel") }}
+            <button class="button">Cancel write-up</button>
+          </form>
+          {% endcall %}
         </div>
       </article>
       {% else %}
@@ -238,5 +311,6 @@
   {% endif %}
 
 </div>
+<script src="/static/scroll.js"></script>
 </body>
 </html>

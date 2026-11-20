@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Annotated
+from urllib.parse import urlencode
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -81,14 +82,37 @@ class Failure:
     values: dict
 
 
-def done(session, writeup):
+def board_url(query="", hidden=(), tail=""):
+    params = [("q", query)] if query else []
+    params += [("hide", group) for group in sorted(hidden)]
+    if tail:
+        params.append(("aircraft", tail))
+    return "/?" + urlencode(params) if params else "/"
+
+
+def board_linker(query, hidden, tail):
+    """Builds links from the current board, changing only what the caller names."""
+    def link(query=query, tail=tail, toggle=None):
+        return board_url(query, hidden ^ {toggle} if toggle else hidden, tail)
+    return link
+
+
+def board_state(request):
+    """The search and hidden groups ride along on every link and form so no click loses them."""
+    return request.query_params.get("q", ""), set(request.query_params.getlist("hide"))
+
+
+def done(request, session, writeup):
     # Commit here rather than when get_session exits: FastAPI has already sent the response
     # by then, so a failed commit would go unreported.
     session.commit()
-    return RedirectResponse(f"/?aircraft={writeup.aircraft.tail_number}#writeup-{writeup.id}", status_code=303)
+    query, hidden = board_state(request)
+    url = board_url(query, hidden, writeup.aircraft.tail_number)
+    return RedirectResponse(f"{url}#writeup-{writeup.id}", status_code=303)
 
 
-def render_board(request, session, now, query="", tail="", failure=None):
+def render_board(request, session, now, tail="", failure=None):
+    query, hidden = board_state(request)
     aircraft = None
     if tail:
         aircraft = session.scalar(select(Aircraft).where(Aircraft.tail_number == tail))
@@ -97,6 +121,9 @@ def render_board(request, session, now, query="", tail="", failure=None):
     context = {
         "board": service.board(session, service.today(now), query),
         "query": query,
+        "hidden": hidden,
+        "link": board_linker(query, hidden, tail),
+        "form_query": board_url(query, hidden).removeprefix("/"),
         "aircraft": aircraft,
         "now": now,
         "today": service.today(now),
@@ -149,8 +176,8 @@ def create_app(engine, clock=local_now):
         return await render_failure(request, message)
 
     @app.get("/")
-    def fleet(request: Request, session: DbSession, now: Now, q: str = "", aircraft: str = ""):
-        return render_board(request, session, now, q, aircraft)
+    def fleet(request: Request, session: DbSession, now: Now, aircraft: str = ""):
+        return render_board(request, session, now, aircraft)
 
     # Text fields default to "" because FastAPI treats an empty form field as missing
     # and Annotated[..., Form()] can't carry a default; require_text in the service then
@@ -158,53 +185,53 @@ def create_app(engine, clock=local_now):
 
     @app.post("/aircraft/{aircraft_id}/writeups")
     def file_writeup(
-        aircraft_id: int, session: DbSession, now: Now, severity: Annotated[Severity, Form()],
-        reported_by: Text = "", description: Text = "",
+        request: Request, aircraft_id: int, session: DbSession, now: Now, severity: Annotated[Severity, Form()],
+        reported_by: Text = "", description: Text = "", scheduled_date: Annotated[date | None, Form()] = None,
     ):
         if session.get(Aircraft, aircraft_id) is None:
             raise HTTPException(404, "Aircraft not found")
-        writeup = service.file_writeup(session, aircraft_id, reported_by, description, severity, now)
-        return done(session, writeup)
+        writeup = service.file_writeup(session, aircraft_id, reported_by, description, severity, now, scheduled_date)
+        return done(request, session, writeup)
 
     @app.post("/writeups/{writeup_id}/schedule")
     def schedule(
-        writeup: LoadedWriteup, session: DbSession, now: Now,
+        request: Request, writeup: LoadedWriteup, session: DbSession, now: Now,
         scheduled_date: Annotated[date, Form()], actor: Text = "",
     ):
         service.schedule(session, writeup, actor, scheduled_date, now)
-        return done(session, writeup)
+        return done(request, session, writeup)
 
     @app.post("/writeups/{writeup_id}/unschedule")
-    def unschedule(writeup: LoadedWriteup, session: DbSession, now: Now, actor: Text = ""):
+    def unschedule(request: Request, writeup: LoadedWriteup, session: DbSession, now: Now, actor: Text = ""):
         service.unschedule(session, writeup, actor, now)
-        return done(session, writeup)
+        return done(request, session, writeup)
 
     @app.post("/writeups/{writeup_id}/start")
-    def start(writeup: LoadedWriteup, session: DbSession, now: Now, actor: Text = ""):
+    def start(request: Request, writeup: LoadedWriteup, session: DbSession, now: Now, actor: Text = ""):
         service.start(session, writeup, actor, now)
-        return done(session, writeup)
+        return done(request, session, writeup)
 
     @app.post("/writeups/{writeup_id}/resolve")
-    def resolve(writeup: LoadedWriteup, session: DbSession, now: Now, actor: Text = "", note: Text = ""):
+    def resolve(request: Request, writeup: LoadedWriteup, session: DbSession, now: Now, actor: Text = "", note: Text = ""):
         service.resolve(session, writeup, actor, note, now)
-        return done(session, writeup)
+        return done(request, session, writeup)
 
     @app.post("/writeups/{writeup_id}/cancel")
-    def cancel(writeup: LoadedWriteup, session: DbSession, now: Now, actor: Text = "", note: Text = ""):
+    def cancel(request: Request, writeup: LoadedWriteup, session: DbSession, now: Now, actor: Text = "", note: Text = ""):
         service.cancel(session, writeup, actor, note, now)
-        return done(session, writeup)
+        return done(request, session, writeup)
 
     @app.post("/writeups/{writeup_id}/severity")
     def change_severity(
-        writeup: LoadedWriteup, session: DbSession, now: Now,
+        request: Request, writeup: LoadedWriteup, session: DbSession, now: Now,
         severity: Annotated[Severity, Form()], actor: Text = "", note: Text = "",
     ):
         service.change_severity(session, writeup, actor, severity, note, now)
-        return done(session, writeup)
+        return done(request, session, writeup)
 
     @app.post("/writeups/{writeup_id}/description")
-    def edit_description(writeup: LoadedWriteup, session: DbSession, now: Now, actor: Text = "", description: Text = ""):
+    def edit_description(request: Request, writeup: LoadedWriteup, session: DbSession, now: Now, actor: Text = "", description: Text = ""):
         service.edit_description(session, writeup, actor, description, now)
-        return done(session, writeup)
+        return done(request, session, writeup)
 
     return app

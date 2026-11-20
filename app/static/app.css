@@ -46,10 +46,13 @@ a:hover { text-decoration-color: var(--fg); }
 
 h1, h2, h3, p, ul, ol { margin: 0; }
 
+summary { cursor: pointer; list-style: none; }
+summary::-webkit-details-marker { display: none; }
+
 /* Labels and data in mono, as on tagup.ai. */
-.fleet thead th, .group-head th, .status, .flag, .severity, .writeup-status,
+.fleet thead th, .group-head, .status, .flag, .severity, .state, .date,
 .summary, .search label, .field > span, .field legend, .panel-close, .button,
-.action summary, .history h3, .open-writeups h3, .when {
+.history h3, .open-writeups h3, .when {
   font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 500;
@@ -120,11 +123,7 @@ input, textarea, select {
 input:hover, textarea:hover, select:hover { border-color: var(--muted); }
 textarea { resize: vertical; width: 100%; }
 
-.fleet {
-  width: 100%;
-  border-collapse: collapse;
-  font-variant-numeric: tabular-nums;
-}
+.fleet { width: 100%; border-collapse: collapse; }
 
 .fleet th, .fleet td {
   padding: 0.6rem 0.75rem;
@@ -135,15 +134,13 @@ textarea { resize: vertical; width: 100%; }
 
 .fleet thead th { color: var(--muted); padding-block: 0.5rem; }
 
-.fleet .num { text-align: right; width: 4.5rem; }
-
-.group-head th {
-  padding-top: 1.75rem;
-  border-bottom-color: currentColor;
-}
+.group-head > * { padding-top: 1.75rem; border-bottom-color: currentColor; }
 .group-head span { margin-left: 0.5rem; }
-.group-grounded .group-head th { color: var(--grounded); }
-.group-cleared .group-head th { color: var(--cleared); }
+.group-grounded .group-head { color: var(--grounded); }
+.group-cleared .group-head { color: var(--cleared); }
+.group-head .toggle { text-align: right; }
+.toggle a { color: var(--muted); text-decoration: none; }
+.toggle a:hover { color: var(--fg); }
 
 .group-grounded tr:not(.group-head) { background: var(--grounded-tint); }
 
@@ -158,7 +155,7 @@ textarea { resize: vertical; width: 100%; }
   font-weight: 500;
   text-decoration: none;
 }
-/* The whole row opens the aircraft, without JavaScript. */
+/* The whole row opens the aircraft. */
 .tail a::after { content: ""; position: absolute; inset: 0; }
 .tail a:focus-visible { outline: none; }
 .tail a:focus-visible::after { outline: 2px solid var(--fg); outline-offset: -2px; }
@@ -166,9 +163,17 @@ textarea { resize: vertical; width: 100%; }
 .status-grounded { color: var(--grounded); }
 .status-cleared { color: var(--cleared); }
 
-.reasons { list-style: none; padding: 0; margin-top: 0.2rem; color: var(--fg); }
-.reasons li { max-width: 48ch; }
+/* A fixed severity column, so a wrapped description never reads as a second write-up. */
+.row-writeups { list-style: none; padding: 0; margin-top: 0.35rem; display: grid; gap: 0.3rem; }
+.row-writeups li { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr); gap: 0.5rem; max-width: 56ch; }
+.row-writeups .severity { padding-top: 0.15em; }
+.no-writeups { color: var(--muted); font-size: 14px; margin-top: 0.2rem; }
 
+.severity { font-size: 11px; color: var(--muted); }
+.severity-high { color: var(--grounded); }
+.severity-medium { color: var(--fg); }
+
+.attention { width: 12rem; }
 .flags { display: flex; flex-wrap: wrap; gap: 0.35rem; }
 
 .flag {
@@ -206,6 +211,19 @@ textarea { resize: vertical; width: 100%; }
 }
 .button:hover { background-color: var(--border); }
 
+.link-button {
+  font: inherit;
+  font-size: 14px;
+  color: var(--muted);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+.link-button:hover { color: var(--fg); }
+
 /* ---------- Aircraft panel ---------- */
 
 .panel {
@@ -224,12 +242,11 @@ textarea { resize: vertical; width: 100%; }
 .panel-head .status { font-size: 14px; }
 .panel-reason { color: var(--muted); }
 
-.file-writeup > summary { list-style: none; }
-.file-writeup > summary::-webkit-details-marker { display: none; }
 .file-writeup[open] > summary { margin-bottom: 1rem; }
 
 form { display: grid; gap: 0.9rem; }
 form .button { justify-self: start; }
+.form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
 
 .field { display: grid; gap: 0.35rem; border: 0; padding: 0; margin: 0; }
 .field > span, .field legend { color: var(--muted); padding: 0; margin-bottom: 0.35rem; }
@@ -249,40 +266,108 @@ input[type="radio"] { accent-color: var(--fg); margin: 0; }
 .open-writeups h3 span { margin-left: 0.5rem; }
 .open-writeups h3, .history h3 { color: var(--muted); }
 
+/* ---------- Write-up cards: each part edits itself ---------- */
+
 .writeup {
   border: 1px solid var(--border);
   background: var(--bg);
-  padding: 1rem;
+  padding: 0.9rem 1rem 1rem;
   display: grid;
-  gap: 0.5rem;
+  gap: 0.6rem;
   scroll-margin-top: 1rem;
 }
-.writeup.severity-high { border-color: rgb(252 165 165 / 0.45); }
+.writeup-high { border-color: rgb(252 165 165 / 0.45); }
 
-.writeup-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.9rem; font-size: 13px; color: var(--muted); }
-.writeup-head .severity { color: var(--fg); }
-.severity-high .severity { color: var(--grounded); }
-.writeup-head > span:not(.severity):not(.writeup-status):not(.flag) { font-family: var(--font-mono); font-size: 12px; }
+.card-top { display: flex; align-items: center; gap: 0.6rem; min-height: 1.75rem; }
+.corner { margin-left: auto; display: flex; align-items: center; gap: 0.5rem; }
 
-.description { font-size: 16px; max-width: 60ch; }
-.meta { color: var(--muted); font-size: 13px; }
-
-.actions { border-top: 1px solid var(--border); margin-top: 0.25rem; }
-.action { border-bottom: 1px solid var(--border); }
-.action:last-child { border-bottom: 0; }
-.action summary {
-  cursor: pointer;
-  padding: 0.6rem 0;
+.state {
+  font-size: 11px;
   color: var(--muted);
-  list-style: none;
+  border: 1px solid var(--border);
+  background: var(--raised);
+  padding: 0.1rem 0.45rem;
+}
+
+.edit { position: relative; }
+
+/* Severity and date look like what they are, with a dotted underline to say they can change. */
+.edit-severity > summary, .edit-date > summary {
+  padding: 0.15rem 0.25rem;
+  margin: -0.15rem -0.25rem;
+  text-decoration: underline dotted;
+  text-decoration-color: var(--border);
+  text-underline-offset: 0.35em;
+}
+.edit-severity > summary:hover, .edit-date > summary:hover,
+.edit-severity[open] > summary, .edit-date[open] > summary {
+  background: var(--raised);
+  text-decoration-color: currentColor;
+}
+.edit-date > summary { color: var(--fg); font-size: 12px; }
+
+.popover {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  z-index: 5;
+  width: min(20rem, calc(100vw - 4rem));
+  background: var(--raised);
+  border: 1px solid var(--border);
+  padding: 1rem;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.6);
+  text-transform: none;
+  letter-spacing: normal;
+}
+.popover-end { left: auto; right: 0; }
+
+.edit-description > summary {
   display: flex;
   justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  font-size: 16px;
+  padding: 0.25rem 0.4rem;
+  margin: -0.25rem -0.4rem;
 }
-.action summary::-webkit-details-marker { display: none; }
-.action summary::after { content: "+"; }
-.action[open] summary::after { content: "−"; }
-.action summary:hover, .action[open] summary { color: var(--fg); }
-.action form { padding-bottom: 1rem; }
+.edit-description > summary::after {
+  content: "Edit";
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  opacity: 0;
+}
+.edit-description > summary:hover { background: var(--raised); }
+.edit-description > summary:hover::after,
+.edit-description > summary:focus-visible::after { opacity: 1; }
+.edit-description[open] > summary { color: var(--muted); }
+.edit-description[open] > summary::after { content: "Close"; opacity: 1; }
+.edit-description[open] > form { margin-top: 0.75rem; }
+@media (hover: none) {
+  .edit-description > summary::after { opacity: 1; }
+}
+
+.meta { color: var(--muted); font-size: 13px; }
+
+.card-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.9rem;
+  margin-top: 0.15rem;
+}
+.edit-step { flex: 1; }
+.edit-step[open] > summary { background-color: var(--border); }
+.edit-step[open] > form { margin-top: 1rem; }
+.edit-cancel { margin-left: auto; padding-top: 0.55rem; }
+.cancel-link { color: var(--muted); font-size: 14px; text-decoration: underline; text-underline-offset: 0.2em; text-decoration-color: var(--border); }
+.cancel-link:hover, .edit-cancel[open] .cancel-link { color: var(--fg); }
+
+/* ---------- History ---------- */
 
 .timeline { list-style: none; padding: 0; display: grid; }
 .timeline li {
@@ -311,11 +396,12 @@ input[type="radio"] { accent-color: var(--fg); margin: 0; }
 
 @media (max-width: 640px) {
   .fleet thead { display: none; }
-  .fleet tr:not(.group-head) { display: grid; grid-template-columns: auto 1fr auto; gap: 0.25rem 0.75rem; padding: 0.75rem 0.5rem; border-bottom: 1px solid var(--border); }
+  .fleet .group-head { display: flex; justify-content: space-between; border-bottom: 1px solid currentColor; }
+  .fleet .group-head > * { border: 0; }
+  .fleet tr:not(.group-head) { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 0.75rem; padding: 0.75rem 0.5rem; border-bottom: 1px solid var(--border); }
   .fleet tr:not(.group-head) > * { padding: 0; border: 0; width: auto; }
-  .fleet tr:not(.group-head) > .attention { grid-column: 2 / -1; }
+  .fleet tr:not(.group-head) > .attention { grid-column: 2; }
   .fleet tr:not(.group-head) > .attention:empty { display: none; }
-  .fleet .group-head th { display: block; }
-  .fleet .num::after { content: " open"; }
+  .row-writeups li { grid-template-columns: 4rem minmax(0, 1fr); }
   .search input { flex: 1; width: auto; }
 }
