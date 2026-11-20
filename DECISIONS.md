@@ -87,6 +87,13 @@
 **Decision:** It's rejected with a message, so the audit log never holds entries where nothing happened.
 **Note:** Made during implementation, not yet reviewed.
 
+### 26. Where is the app used: at a desk or on the ramp?
+**Decision:** Designed for maintenance control at a desktop monitor first. A pilot or mechanic on a phone can still file and act on write-ups, but the phone layout isn't optimized ahead of the desk.
+
+### 27. What does the home screen show?
+**Decision:** The fleet clearance board. Grounded and cleared are both stated explicitly, and each grounded aircraft shows the High write-ups grounding it. Filing and acting on write-ups happens on an aircraft's page.
+**Why:** The brief's core promise is showing which aircraft are cleared to fly. What can't fly matters as much as what can, so neither state is left to be inferred.
+
 ## Architecture
 
 ### A1. Language and framework?
@@ -136,3 +143,7 @@
 ### A12. Indexes?
 **Decision:** Write-ups are indexed on (aircraft, status) for an aircraft's page and on status for the fleet page's "all open write-ups" query. Audit entries are indexed on write-up.
 **Why:** The fleet page filters by status alone, which the (aircraft, status) index from the reviewed model can't serve.
+
+### A13. How much frontend tooling?
+**Decision:** One hand-written CSS file and no JavaScript at all. Disclosure uses native HTML (`<details>`, separate pages).
+**Why:** Follows from A2. Every action is already a plain form POST, so a script would add a second way for things to break without enabling anything the brief needs.
