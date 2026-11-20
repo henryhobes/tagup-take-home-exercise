@@ -51,4 +51,3 @@ The demo fleet has 30 aircraft, N401TG to N430TG. The first twelve each show one
 - `app/seed.py`: the demo fleet, built through the same actions the app uses.
 - `tests/`: unit tests for the rules, and tests through the routes on a fresh database per test.
 - `CLAUDE.md`: the working instructions given to the AI coding agent.
-- `PRODUCT.md`: a product brief written for the design tool used on the UI, partway through. DECISIONS.md is the current record where the two differ.
