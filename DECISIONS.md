@@ -94,6 +94,22 @@
 **Decision:** The fleet clearance board. Grounded and cleared are both stated explicitly, and each grounded aircraft shows the High write-ups grounding it. Filing and acting on write-ups happens on an aircraft's page.
 **Why:** The brief's core promise is showing which aircraft are cleared to fly. What can't fly matters as much as what can, so neither state is left to be inferred.
 
+### 28. How is the fleet board laid out?
+**Decision:** One table with two row groups, Grounded first, then Cleared, each with a count and an explicit empty message. Columns: tail number, status in words, open write-up count, Overdue and Needs scheduling markers, and on grounded rows a short reason ("1 High: Cracked windshield"). Within each group, overdue first, then needs scheduling, then earliest scheduled date, then tail number.
+**Why:** Started as two separate sections with each aircraft's Highs listed inline. Once aircraft details moved into a sidebar (29), the inline lists weren't needed and would have been cramped, so one table keeps columns aligned and the phone layout trivial. A Needs scheduling marker is there because the brief says every issue needs scheduling, and an unscheduled Medium would otherwise be invisible on the board.
+
+### 29. Where are an aircraft's details?
+**Decision:** Selecting an aircraft opens a sidebar beside the board on desktop. On a narrow screen the same URL shows only the aircraft, with a link back to the fleet. The panel holds the clearance status, a Create Write-Up button, one card per open write-up with its actions, and one timeline of every event across all of that aircraft's write-ups. Closed write-ups appear only in the timeline. Tail-number search on the board is a plain GET form.
+**Why:** One URL and one template serve both layouts without JavaScript (A13). A single timeline per aircraft answers "what happened to this plane" better than a history per card.
+
+### 30. How is a write-up filed?
+**Decision:** From a Create Write-Up button in the aircraft panel, with the form shown inline in the panel. A modal is a later polish item, only if time remains. Severity has no default; the reporter must choose.
+**Why:** The button lives where the aircraft is already known, so the existing per-aircraft route works unchanged. A preselected severity would let someone file a grounding defect as Medium by accident.
+
+### 31. What does the app look like?
+**Decision:** Tagup's own design language from tagup.ai: Barlow for text, IBM Plex Mono for labels and data, square corners, and their dark palette only. Orange means caution only (Overdue, Needs scheduling); Grounded uses their danger red and Cleared their green; buttons are neutral.
+**Why:** It's a Tagup exercise. On a clearance board color has to mean status, so the brand orange can't also mark buttons.
+
 ## Architecture
 
 ### A1. Language and framework?
