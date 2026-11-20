@@ -1,0 +1,321 @@
+@font-face { font-family: "Barlow"; font-weight: 400; font-display: swap; src: url("fonts/barlow-400-latin.woff2") format("woff2"); }
+@font-face { font-family: "Barlow"; font-weight: 500; font-display: swap; src: url("fonts/barlow-500-latin.woff2") format("woff2"); }
+@font-face { font-family: "Barlow"; font-weight: 600; font-display: swap; src: url("fonts/barlow-600-latin.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-weight: 400; font-display: swap; src: url("fonts/ibm-plex-mono-400-latin.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-weight: 500; font-display: swap; src: url("fonts/ibm-plex-mono-500-latin.woff2") format("woff2"); }
+
+/* Tokens from tagup.ai's dark theme. Orange means caution only (DECISIONS.md 31). */
+:root {
+  color-scheme: dark;
+  --bg: #030303;
+  --surface: #0a0e1a;
+  --raised: #111729;
+  --fg: #f4f7ff;
+  --muted: #a9b3c9;
+  --border: #242b40;
+  --grounded: #fca5a5;
+  --grounded-tint: rgb(252 165 165 / 0.07);
+  --cleared: #7cff6b;
+  --caution: #ff4f00;
+  --caution-text: #ff7a3d;
+
+  --font-sans: "Barlow", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --gutter: clamp(1rem, 3vw, 2rem);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { scrollbar-color: var(--border) var(--bg); }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 400 15px/1.45 var(--font-sans);
+  caret-color: var(--fg);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: var(--fg); color: var(--bg); }
+
+:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+
+a { color: inherit; text-underline-offset: 0.2em; text-decoration-color: var(--muted); }
+a:hover { text-decoration-color: var(--fg); }
+
+h1, h2, h3, p, ul, ol { margin: 0; }
+
+/* Labels and data in mono, as on tagup.ai. */
+.fleet thead th, .group-head th, .status, .flag, .severity, .writeup-status,
+.summary, .search label, .field > span, .field legend, .panel-close, .button,
+.action summary, .history h3, .open-writeups h3, .when {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ---------- Layout ---------- */
+
+.layout { min-height: 100vh; }
+
+.board {
+  padding: var(--gutter);
+  max-width: 72rem;
+}
+
+@media (min-width: 960px) {
+  .has-panel .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(24rem, 30rem);
+  }
+  .panel {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    border-left: 1px solid var(--border);
+  }
+  .narrow-only { display: none; }
+}
+
+@media (max-width: 959.98px) {
+  .has-panel .board { display: none; }
+  .wide-only { display: none; }
+}
+
+/* ---------- Board ---------- */
+
+.board-head { display: grid; gap: 0.5rem; margin-bottom: 1.5rem; }
+
+h1 { font-size: 28px; font-weight: 500; letter-spacing: -0.01em; line-height: 1.1; }
+
+.summary { display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem; font-size: 13px; }
+.summary .grounded { color: var(--grounded); }
+.summary .cleared { color: var(--cleared); }
+
+.as-of { color: var(--muted); font-size: 14px; }
+
+.search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 1.5rem;
+}
+.search label { color: var(--muted); }
+.search input { width: 12rem; font-family: var(--font-mono); text-transform: uppercase; }
+.search a { color: var(--muted); font-size: 14px; }
+
+input, textarea, select {
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: 0.45rem 0.6rem;
+}
+input:hover, textarea:hover, select:hover { border-color: var(--muted); }
+textarea { resize: vertical; width: 100%; }
+
+.fleet {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.fleet th, .fleet td {
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--border);
+}
+
+.fleet thead th { color: var(--muted); padding-block: 0.5rem; }
+
+.fleet .num { text-align: right; width: 4.5rem; }
+
+.group-head th {
+  padding-top: 1.75rem;
+  border-bottom-color: currentColor;
+}
+.group-head span { margin-left: 0.5rem; }
+.group-grounded .group-head th { color: var(--grounded); }
+.group-cleared .group-head th { color: var(--cleared); }
+
+.group-grounded tr:not(.group-head) { background: var(--grounded-tint); }
+
+.fleet tbody tr:not(.group-head) { position: relative; }
+.fleet tbody tr:not(.group-head):hover { background: var(--raised); }
+.fleet tbody tr[aria-current="true"] { background: var(--raised); box-shadow: inset 0 0 0 1px var(--muted); }
+
+.tail { width: 7rem; white-space: nowrap; }
+.tail a {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+}
+/* The whole row opens the aircraft, without JavaScript. */
+.tail a::after { content: ""; position: absolute; inset: 0; }
+.tail a:focus-visible { outline: none; }
+.tail a:focus-visible::after { outline: 2px solid var(--fg); outline-offset: -2px; }
+
+.status-grounded { color: var(--grounded); }
+.status-cleared { color: var(--cleared); }
+
+.reasons { list-style: none; padding: 0; margin-top: 0.2rem; color: var(--fg); }
+.reasons li { max-width: 48ch; }
+
+.attention { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+
+.flag {
+  display: inline-block;
+  color: var(--caution-text);
+  border: 1px solid var(--caution);
+  padding: 0.1rem 0.4rem;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.empty { color: var(--muted); }
+
+/* ---------- Buttons ---------- */
+
+/* Tagup's bracketed corners. */
+.button {
+  --corner: var(--fg);
+  display: inline-block;
+  cursor: pointer;
+  color: var(--fg);
+  border: 0;
+  padding: 0.6rem 1rem;
+  background:
+    linear-gradient(var(--corner), var(--corner)) top left / 8px 1.5px,
+    linear-gradient(var(--corner), var(--corner)) top left / 1.5px 8px,
+    linear-gradient(var(--corner), var(--corner)) top right / 8px 1.5px,
+    linear-gradient(var(--corner), var(--corner)) top right / 1.5px 8px,
+    linear-gradient(var(--corner), var(--corner)) bottom left / 8px 1.5px,
+    linear-gradient(var(--corner), var(--corner)) bottom left / 1.5px 8px,
+    linear-gradient(var(--corner), var(--corner)) bottom right / 8px 1.5px,
+    linear-gradient(var(--corner), var(--corner)) bottom right / 1.5px 8px,
+    var(--raised);
+  background-repeat: no-repeat;
+}
+.button:hover { background-color: var(--border); }
+
+/* ---------- Aircraft panel ---------- */
+
+.panel {
+  background: var(--surface);
+  padding: var(--gutter);
+  display: grid;
+  align-content: start;
+  gap: 1.75rem;
+}
+
+.panel-close { color: var(--muted); text-decoration: none; justify-self: start; }
+.panel-close:hover { color: var(--fg); }
+
+.panel-head { display: grid; gap: 0.35rem; }
+.panel-head h2 { font-family: var(--font-mono); font-size: 26px; font-weight: 500; letter-spacing: 0.02em; }
+.panel-head .status { font-size: 14px; }
+.panel-reason { color: var(--muted); }
+
+.file-writeup > summary { list-style: none; }
+.file-writeup > summary::-webkit-details-marker { display: none; }
+.file-writeup[open] > summary { margin-bottom: 1rem; }
+
+form { display: grid; gap: 0.9rem; }
+form .button { justify-self: start; }
+
+.field { display: grid; gap: 0.35rem; border: 0; padding: 0; margin: 0; }
+.field > span, .field legend { color: var(--muted); padding: 0; margin-bottom: 0.35rem; }
+.field input:not([type="radio"]), .field select { width: 100%; }
+.choices { display: flex; gap: 1.25rem; }
+.choices label { display: flex; align-items: center; gap: 0.4rem; cursor: pointer; }
+input[type="radio"] { accent-color: var(--fg); margin: 0; }
+
+.error {
+  color: var(--grounded);
+  border: 1px solid var(--grounded);
+  background: var(--grounded-tint);
+  padding: 0.5rem 0.75rem;
+}
+
+.open-writeups, .history { display: grid; gap: 0.75rem; }
+.open-writeups h3 span { margin-left: 0.5rem; }
+.open-writeups h3, .history h3 { color: var(--muted); }
+
+.writeup {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  padding: 1rem;
+  display: grid;
+  gap: 0.5rem;
+  scroll-margin-top: 1rem;
+}
+.writeup.severity-high { border-color: rgb(252 165 165 / 0.45); }
+
+.writeup-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.9rem; font-size: 13px; color: var(--muted); }
+.writeup-head .severity { color: var(--fg); }
+.severity-high .severity { color: var(--grounded); }
+.writeup-head > span:not(.severity):not(.writeup-status):not(.flag) { font-family: var(--font-mono); font-size: 12px; }
+
+.description { font-size: 16px; max-width: 60ch; }
+.meta { color: var(--muted); font-size: 13px; }
+
+.actions { border-top: 1px solid var(--border); margin-top: 0.25rem; }
+.action { border-bottom: 1px solid var(--border); }
+.action:last-child { border-bottom: 0; }
+.action summary {
+  cursor: pointer;
+  padding: 0.6rem 0;
+  color: var(--muted);
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+}
+.action summary::-webkit-details-marker { display: none; }
+.action summary::after { content: "+"; }
+.action[open] summary::after { content: "−"; }
+.action summary:hover, .action[open] summary { color: var(--fg); }
+.action form { padding-bottom: 1rem; }
+
+.timeline { list-style: none; padding: 0; display: grid; }
+.timeline li {
+  display: grid;
+  gap: 0.15rem;
+  padding: 0.75rem 0 0.75rem 1rem;
+  border-left: 1px solid var(--border);
+  position: relative;
+}
+.timeline li::before {
+  content: "";
+  position: absolute;
+  left: -3.5px;
+  top: 1.1rem;
+  width: 6px;
+  height: 6px;
+  background: var(--muted);
+}
+.when { color: var(--muted); font-size: 11px; }
+.note { color: var(--fg); max-width: 60ch; }
+.note::before { content: "“"; }
+.note::after { content: "”"; }
+.ref { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- Narrow screens ---------- */
+
+@media (max-width: 640px) {
+  .fleet thead { display: none; }
+  .fleet tr:not(.group-head) { display: grid; grid-template-columns: auto 1fr auto; gap: 0.25rem 0.75rem; padding: 0.75rem 0.5rem; border-bottom: 1px solid var(--border); }
+  .fleet tr:not(.group-head) > * { padding: 0; border: 0; width: auto; }
+  .fleet tr:not(.group-head) > .attention { grid-column: 2 / -1; }
+  .fleet tr:not(.group-head) > .attention:empty { display: none; }
+  .fleet .group-head th { display: block; }
+  .fleet .num::after { content: " open"; }
+  .search input { flex: 1; width: auto; }
+}

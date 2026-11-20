@@ -1,11 +1,11 @@
 from dataclasses import dataclass
-from datetime import UTC
+from datetime import UTC, date, datetime
 
 from sqlalchemy import select
 
 from app import rules
 from app.models import Aircraft, EventKind, Writeup, WriteupEvent
-from app.rules import OPEN_STATUSES, require_text
+from app.rules import OPEN_STATUSES, Severity, Status, require_text
 
 
 @dataclass
@@ -17,6 +17,21 @@ class AircraftStatus:
     def cleared(self):
         return rules.is_cleared(self.open_writeups)
 
+    @property
+    def grounding(self):
+        return [w for w in self.open_writeups if w.severity == Severity.high]
+
+    @property
+    def needs_scheduling(self):
+        return any(w.status == Status.unscheduled for w in self.open_writeups)
+
+    @property
+    def next_date(self):
+        return min((w.scheduled_date for w in self.open_writeups if w.scheduled_date), default=None)
+
+    def is_overdue(self, today):
+        return any(rules.is_overdue(w, today) for w in self.open_writeups)
+
 
 def fleet_status(session):
     aircraft = session.scalars(select(Aircraft).order_by(Aircraft.tail_number)).all()
@@ -27,6 +42,54 @@ def fleet_status(session):
     for writeup in open_writeups:
         by_aircraft[writeup.aircraft_id].append(writeup)
     return [AircraftStatus(plane, by_aircraft[plane.id]) for plane in aircraft]
+
+
+@dataclass
+class Board:
+    grounded: list[AircraftStatus]
+    cleared: list[AircraftStatus]
+    fleet_size: int
+    grounded_count: int
+
+
+def board(session, today, query=""):
+    fleet = fleet_status(session)
+    query = query.strip().lower()
+    shown = [s for s in fleet if query in s.aircraft.tail_number.lower()]
+    shown.sort(key=lambda s: (
+        not s.is_overdue(today), not s.needs_scheduling, s.next_date or date.max, s.aircraft.tail_number,
+    ))
+    return Board(
+        grounded=[s for s in shown if not s.cleared],
+        cleared=[s for s in shown if s.cleared],
+        fleet_size=len(fleet),
+        grounded_count=sum(not s.cleared for s in fleet),
+    )
+
+
+@dataclass
+class TimelineEntry:
+    at: datetime
+    actor: str
+    writeup: Writeup
+    event: WriteupEvent | None  # None is the filing itself, which lives on the write-up row (A9).
+
+
+def timeline(aircraft):
+    entries = []
+    for writeup in aircraft.writeups:
+        entries.append(TimelineEntry(writeup.reported_at, writeup.reported_by, writeup, None))
+        entries += [TimelineEntry(event.at, event.actor, writeup, event) for event in writeup.events]
+    # Reversing a stable sort, rather than sorting descending, puts same-instant entries newest first too.
+    return sorted(entries, key=lambda entry: entry.at)[::-1]
+
+
+def open_writeups(aircraft):
+    severity_rank = list(Severity).index
+    return sorted(
+        (w for w in aircraft.writeups if w.status in OPEN_STATUSES),
+        key=lambda w: (severity_rank(w.severity), w.id),
+    )
 
 
 def file_writeup(session, aircraft_id, reported_by, description, severity, now):

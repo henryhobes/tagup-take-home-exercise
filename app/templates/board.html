@@ -1,0 +1,238 @@
+{%- macro aircraft_url(tail) -%}
+/?{% if query %}q={{ query | urlencode }}&amp;{% endif %}aircraft={{ tail }}#row-{{ tail }}
+{%- endmacro -%}
+
+{%- macro kept(form_id, field, default="") -%}
+{{ failure.values.get(field, default) if failure and failure.form_id == form_id else default }}
+{%- endmacro -%}
+
+{%- macro error_for(form_id) -%}
+{% if failure and failure.form_id == form_id %}<p class="error" role="alert">{{ failure.message }}</p>{% endif %}
+{%- endmacro -%}
+
+{%- macro action(writeup, name, label, button) -%}
+{% set form_id = writeup.id ~ "-" ~ name %}
+<details class="action"{% if failure and failure.form_id == form_id %} open{% endif %}>
+  <summary>{{ label }}</summary>
+  <form method="post" action="/writeups/{{ writeup.id }}/{{ name }}">
+    {{ error_for(form_id) }}
+    {{ caller(form_id) }}
+    <label class="field">
+      <span>Your name</span>
+      <input name="actor" required autocomplete="name" value="{{ kept(form_id, 'actor') }}">
+    </label>
+    <button class="button">{{ button }}</button>
+  </form>
+</details>
+{%- endmacro -%}
+
+{%- macro date_field(form_id, current) -%}
+<label class="field">
+  <span>Finish by</span>
+  <input type="date" name="scheduled_date" required min="{{ today.isoformat() }}"
+    value="{{ kept(form_id, 'scheduled_date', current.isoformat() if current else '') }}">
+</label>
+{%- endmacro -%}
+
+{%- macro note_field(form_id, label) -%}
+<label class="field">
+  <span>{{ label }}</span>
+  <textarea name="note" rows="2" required>{{ kept(form_id, 'note') }}</textarea>
+</label>
+{%- endmacro -%}
+
+{%- macro event_text(entry) -%}
+{% set event = entry.event %}
+{% if event is none %}Filed as {{ entry.writeup.severity | capitalize }}
+{% elif event.kind == "scheduled" %}Scheduled to finish by {{ event.to_value | day }}
+{% elif event.kind == "rescheduled" %}Rescheduled from {{ event.from_value | day }} to {{ event.to_value | day }}
+{% elif event.kind == "unscheduled" %}Unscheduled; was due {{ event.from_value | day }}
+{% elif event.kind == "started" %}Work started
+{% elif event.kind == "resolved" %}Resolved
+{% elif event.kind == "canceled" %}Canceled
+{% elif event.kind == "severity_changed" %}Severity changed from {{ event.from_value | capitalize }} to {{ event.to_value | capitalize }}
+{% elif event.kind == "description_edited" %}Description changed; was “{{ event.from_value }}”
+{% endif %}
+{%- endmacro -%}
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if aircraft %}{{ aircraft.tail_number }} · {% endif %}Fleet clearance</title>
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body{% if aircraft %} class="has-panel"{% endif %}>
+<div class="layout">
+
+  <main class="board">
+    <header class="board-head">
+      <h1>Fleet clearance</h1>
+      <p class="summary">
+        <span class="grounded">{{ board.grounded_count }} grounded</span>
+        <span class="cleared">{{ board.fleet_size - board.grounded_count }} cleared</span>
+        <span>{{ board.fleet_size }} aircraft</span>
+      </p>
+      <p class="as-of">Status as of <time>{{ now.strftime("%H:%M") }}</time>. Refresh to update.</p>
+    </header>
+
+    <form class="search" method="get" action="/" role="search">
+      <label for="q">Tail number</label>
+      <input id="q" name="q" value="{{ query }}" autocomplete="off" spellcheck="false">
+      <button class="button">Search</button>
+      {% if query %}<a href="/">Clear search</a>{% endif %}
+    </form>
+
+    <table class="fleet">
+      <thead>
+        <tr><th scope="col">Aircraft</th><th scope="col">Status</th><th scope="col" class="num">Open</th><th scope="col">Attention</th></tr>
+      </thead>
+      {% if query and not board.grounded and not board.cleared %}
+      <tbody><tr><td colspan="4" class="empty">No aircraft match “{{ query }}”.</td></tr></tbody>
+      {% else %}
+      {% for key, label, rows in [("grounded", "Grounded", board.grounded), ("cleared", "Cleared", board.cleared)] %}
+      <tbody class="group group-{{ key }}">
+        <tr class="group-head"><th colspan="4" scope="colgroup">{{ label }} <span>{{ rows | length }}</span></th></tr>
+        {% for row in rows %}
+        {% set tail = row.aircraft.tail_number %}
+        <tr id="row-{{ tail }}"{% if aircraft and aircraft.id == row.aircraft.id %} aria-current="true"{% endif %}>
+          <th scope="row" class="tail"><a href="{{ aircraft_url(tail) }}">{{ tail }}</a></th>
+          <td>
+            {% if row.cleared %}
+            <span class="status status-cleared">Cleared</span>
+            {% else %}
+            <span class="status status-grounded">Grounded</span>
+            <ul class="reasons">
+              {% for writeup in row.grounding %}<li>High: {{ writeup.description }}</li>{% endfor %}
+            </ul>
+            {% endif %}
+          </td>
+          <td class="num">{{ row.open_writeups | length or "None" }}</td>
+          <td class="attention">
+            {% if row.is_overdue(today) %}<span class="flag">Overdue</span>{% endif %}
+            {% if row.needs_scheduling %}<span class="flag">Needs scheduling</span>{% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="empty">{% if query %}No {{ key }} aircraft match “{{ query }}”.{% else %}No aircraft {{ key }}.{% endif %}</td></tr>
+        {% endfor %}
+      </tbody>
+      {% endfor %}
+      {% endif %}
+    </table>
+  </main>
+
+  {% if aircraft %}
+  <aside class="panel" aria-labelledby="panel-title">
+    <a class="panel-close" href="/{% if query %}?q={{ query | urlencode }}{% endif %}#row-{{ aircraft.tail_number }}">
+      <span class="wide-only">Close</span><span class="narrow-only">Back to fleet</span>
+    </a>
+
+    <header class="panel-head">
+      <h2 id="panel-title">{{ aircraft.tail_number }}</h2>
+      {% if status.cleared %}
+      <p class="status status-cleared">Cleared to fly</p>
+      <p class="panel-reason">No open High write-ups.</p>
+      {% else %}
+      <p class="status status-grounded">Grounded</p>
+      <p class="panel-reason">{{ status.grounding | length }} open High write-up{{ "s" if status.grounding | length > 1 }} must be resolved or canceled.</p>
+      {% endif %}
+    </header>
+
+    <details class="file-writeup"{% if failure and failure.form_id == "file" %} open{% endif %}>
+      <summary class="button">Create write-up</summary>
+      <form method="post" action="/aircraft/{{ aircraft.id }}/writeups">
+        {{ error_for("file") }}
+        <fieldset class="field">
+          <legend>Severity</legend>
+          <div class="choices">
+            {% for severity in ["high", "medium", "low"] %}
+            <label><input type="radio" name="severity" value="{{ severity }}" required{% if kept('file', 'severity') == severity %} checked{% endif %}> {{ severity | capitalize }}</label>
+            {% endfor %}
+          </div>
+        </fieldset>
+        <label class="field">
+          <span>What's wrong</span>
+          <textarea name="description" rows="3" required>{{ kept("file", "description") }}</textarea>
+        </label>
+        <label class="field">
+          <span>Your name</span>
+          <input name="reported_by" required autocomplete="name" value="{{ kept('file', 'reported_by') }}">
+        </label>
+        <button class="button">File write-up</button>
+      </form>
+    </details>
+
+    <section class="open-writeups" aria-labelledby="open-title">
+      <h3 id="open-title">Open write-ups <span>{{ status.open_writeups | length }}</span></h3>
+      {% for writeup in status.open_writeups %}
+      <article class="writeup severity-{{ writeup.severity }}" id="writeup-{{ writeup.id }}">
+        <header class="writeup-head">
+          <span class="severity">{{ writeup.severity }}</span>
+          <span class="writeup-status">{{ STATUS_LABELS[writeup.status] }}</span>
+          {% if writeup.scheduled_date %}<span>Finish by {{ writeup.scheduled_date | day }}</span>{% endif %}
+          {% if is_overdue(writeup, today) %}<span class="flag">Overdue</span>{% endif %}
+          {% if writeup.status == "unscheduled" %}<span class="flag">Needs scheduling</span>{% endif %}
+        </header>
+        <p class="description">{{ writeup.description }}</p>
+        <p class="meta">#{{ writeup.id }} · reported by {{ writeup.reported_by }}, {{ writeup.reported_at | local_time(now) }}</p>
+
+        <div class="actions">
+          {% if writeup.status == "unscheduled" %}
+            {% call(form_id) action(writeup, "schedule", "Schedule", "Schedule repair") %}{{ date_field(form_id, none) }}{% endcall %}
+          {% elif writeup.status == "scheduled" %}
+            {% call(form_id) action(writeup, "start", "Start work", "Start work") %}{% endcall %}
+            {% call(form_id) action(writeup, "schedule", "Reschedule", "Reschedule") %}{{ date_field(form_id, writeup.scheduled_date) }}{% endcall %}
+            {% call(form_id) action(writeup, "unschedule", "Unschedule", "Unschedule") %}{% endcall %}
+          {% else %}
+            {% call(form_id) action(writeup, "resolve", "Resolve", "Resolve write-up") %}{{ note_field(form_id, "What was done") }}{% endcall %}
+            {% call(form_id) action(writeup, "schedule", "Reschedule", "Reschedule") %}{{ date_field(form_id, writeup.scheduled_date) }}{% endcall %}
+          {% endif %}
+          {% call(form_id) action(writeup, "severity", "Change severity", "Change severity") %}
+            <label class="field">
+              <span>New severity</span>
+              <select name="severity" required>
+                <option value="">Choose</option>
+                {% for severity in ["high", "medium", "low"] if severity != writeup.severity %}
+                <option value="{{ severity }}"{% if kept(form_id, 'severity') == severity %} selected{% endif %}>{{ severity | capitalize }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            {{ note_field(form_id, "Reason") }}
+          {% endcall %}
+          {% call(form_id) action(writeup, "description", "Edit description", "Save description") %}
+            <label class="field">
+              <span>Description</span>
+              <textarea name="description" rows="3" required>{{ kept(form_id, 'description', writeup.description) }}</textarea>
+            </label>
+          {% endcall %}
+          {% call(form_id) action(writeup, "cancel", "Cancel write-up", "Cancel write-up") %}{{ note_field(form_id, "Reason") }}{% endcall %}
+        </div>
+      </article>
+      {% else %}
+      <p class="empty">No open write-ups.</p>
+      {% endfor %}
+    </section>
+
+    <section class="history" aria-labelledby="history-title">
+      <h3 id="history-title">History</h3>
+      <ol class="timeline">
+        {% for entry in timeline %}
+        <li>
+          <p class="when"><time>{{ entry.at | local_time(now) }}</time> · {{ entry.actor }}</p>
+          <p class="what">{{ event_text(entry) }}</p>
+          {% if entry.event and entry.event.note %}<p class="note">{{ entry.event.note }}</p>{% endif %}
+          <p class="ref">#{{ entry.writeup.id }} {{ entry.writeup.description }}</p>
+        </li>
+        {% else %}
+        <li class="empty">Nothing has been filed against this aircraft.</li>
+        {% endfor %}
+      </ol>
+    </section>
+  </aside>
+  {% endif %}
+
+</div>
+</body>
+</html>

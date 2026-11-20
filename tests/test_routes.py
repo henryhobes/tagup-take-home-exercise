@@ -4,7 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 
-from app.main import create_app, get_now
+from app.main import create_app
 from app.models import Aircraft, EventKind, Writeup
 from app.rules import Severity, Status
 from tests.common import NOW, TOMORROW, YESTERDAY
@@ -17,15 +17,13 @@ FILING = {"severity": "high", "description": "Cracked window", "reported_by": "D
 def client(engine, session):
     session.add(Aircraft(tail_number="N101TG"))
     session.commit()
-    app = create_app(engine)
-    app.dependency_overrides[get_now] = lambda: NOW
-    return TestClient(app, follow_redirects=False)
+    return TestClient(create_app(engine, clock=lambda: NOW), follow_redirects=False)
 
 
 def file(client, **overrides):
     response = client.post("/aircraft/1/writeups", data=FILING | overrides)
     assert response.status_code == 303, response.text
-    return int(response.headers["location"].rsplit("/", 1)[1])
+    return int(response.headers["location"].rsplit("#writeup-", 1)[1])
 
 
 def act(client, writeup_id, action, expected=303, **data):
@@ -67,8 +65,9 @@ class TestFile:
         assert writeup.reported_at == NOW.astimezone(UTC).replace(tzinfo=None)
         assert events(session, writeup_id) == []
 
-    def test_redirects_to_writeup(self, client):
-        assert file(client) == 1
+    def test_redirects_to_writeup_in_aircraft_panel(self, client):
+        response = client.post("/aircraft/1/writeups", data=FILING)
+        assert response.headers["location"] == "/?aircraft=N101TG#writeup-1"
 
     @pytest.mark.parametrize("field", ["description", "reported_by"])
     @pytest.mark.parametrize("value", ["", " "])
@@ -79,7 +78,7 @@ class TestFile:
     def test_unknown_severity_is_rejected(self, client):
         response = client.post("/aircraft/1/writeups", data=FILING | {"severity": "critical"})
         assert response.status_code == 400
-        assert response.text.startswith("severity:")
+        assert "Severity is invalid." in response.text
 
     def test_unknown_aircraft_is_404(self, client):
         assert client.post("/aircraft/999/writeups", data=FILING).status_code == 404

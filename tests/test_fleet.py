@@ -1,7 +1,7 @@
-from datetime import date
+from datetime import date, timedelta
 
 from app import service
-from app.models import Aircraft
+from app.models import Aircraft, EventKind
 from app.rules import Severity, Status
 from tests.common import NOW
 
@@ -59,3 +59,72 @@ def test_downgrading_severity_clears_immediately(session):
     writeup = file(session, plane, Severity.high)
     service.change_severity(session, writeup, "Sam Okafor", Severity.low, "Cosmetic only", NOW)
     assert statuses(session)["N100TG"].cleared
+
+
+TODAY = NOW.date()
+
+
+def board_tails(rows):
+    return [row.aircraft.tail_number for row in rows]
+
+
+def schedule(session, writeup, offset_days):
+    service.schedule(session, writeup, "Jordan Bell", TODAY + timedelta(days=offset_days), NOW)
+
+
+class TestBoard:
+    def test_splits_fleet_into_grounded_and_cleared(self, session):
+        grounded, cleared = add_aircraft(session, "N100TG", "N200TG")
+        file(session, grounded, Severity.high)
+        board = service.board(session, TODAY)
+        assert board_tails(board.grounded) == ["N100TG"]
+        assert board_tails(board.cleared) == ["N200TG"]
+        assert (board.fleet_size, board.grounded_count) == (2, 1)
+
+    def test_sorts_overdue_then_needs_scheduling_then_earliest_date_then_tail(self, session):
+        planes = add_aircraft(session, "N600TG", "N500TG", "N400TG", "N300TG", "N200TG", "N100TG")
+        late, unscheduled, soon, later, quiet_b, quiet_a = planes
+        overdue = file(session, late, Severity.low)
+        schedule(session, overdue, 0)
+        overdue.scheduled_date = TODAY - timedelta(days=1)
+        file(session, unscheduled, Severity.low)
+        schedule(session, file(session, soon, Severity.low), 1)
+        schedule(session, file(session, later, Severity.low), 5)
+        board = service.board(session, TODAY)
+        assert board_tails(board.cleared) == ["N600TG", "N500TG", "N400TG", "N300TG", "N100TG", "N200TG"]
+
+    def test_flags_overdue_and_needs_scheduling(self, session):
+        [plane] = add_aircraft(session, "N100TG")
+        file(session, plane, Severity.medium)
+        writeup = file(session, plane, Severity.low)
+        schedule(session, writeup, 0)
+        writeup.scheduled_date = TODAY - timedelta(days=1)
+        [row] = service.board(session, TODAY).cleared
+        assert row.needs_scheduling
+        assert row.is_overdue(TODAY)
+
+    def test_grounding_lists_only_open_highs(self, session):
+        [plane] = add_aircraft(session, "N100TG")
+        high = file(session, plane, Severity.high)
+        file(session, plane, Severity.low)
+        [row] = service.board(session, TODAY).grounded
+        assert row.grounding == [high]
+
+    def test_search_matches_part_of_tail_ignoring_case(self, session):
+        add_aircraft(session, "N401TG", "N402TG", "N510TG")
+        board = service.board(session, TODAY, "n40")
+        assert board_tails(board.cleared) == ["N401TG", "N402TG"]
+        assert board.fleet_size == 3
+
+
+def test_timeline_lists_filing_and_events_newest_first(session):
+    [plane] = add_aircraft(session, "N100TG")
+    first = file(session, plane, Severity.high)
+    schedule(session, first, 1)
+    second = file(session, plane, Severity.low)
+    entries = service.timeline(plane)
+    assert [(entry.writeup, entry.event.kind if entry.event else "filed") for entry in entries] == [
+        (second, "filed"),
+        (first, EventKind.scheduled),
+        (first, "filed"),
+    ]

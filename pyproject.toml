@@ -5,6 +5,7 @@ description = "Aircraft maintenance write-up tracker"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi",
+    "jinja2>=3.1.6",
     "python-multipart",
     "sqlalchemy",
     "uvicorn",
