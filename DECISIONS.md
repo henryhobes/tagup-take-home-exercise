@@ -111,6 +111,7 @@ Each write-up card is edited in place: the severity, the date and the descriptio
 ### 31. What does the app look like?
 **Decision:** Tagup's own design language from tagup.ai: Barlow for text, IBM Plex Mono for labels and data, square corners, and their dark palette only. Orange means caution only (Overdue, Needs scheduling); Grounded uses their danger red and Cleared their green; buttons are neutral.
 **Why:** It's a Tagup exercise. On a clearance board color has to mean status, so the brand orange can't also mark buttons.
+**Note:** Four kinds of label, each with one look. An aircraft's clearance is a filled chip in its color; a write-up's status is a muted chip; Overdue and Needs scheduling are orange outlined chips; severity is bare text. Clearance started as bare red text and read the same as a High severity label beneath it. All chips share one box: trimmed to the capital height with equal insets, so they line up on the text baseline next to them.
 
 ## Architecture
 
