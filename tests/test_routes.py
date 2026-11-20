@@ -7,10 +7,9 @@ from sqlalchemy import select
 from app.main import create_app
 from app.models import Aircraft, EventKind, Writeup
 from app.rules import Severity, Status
-from tests.common import NOW, TOMORROW, YESTERDAY
+from tests.common import FILING, NOW, TOMORROW, YESTERDAY, file
 
 NEXT_WEEK = date(2026, 6, 22)
-FILING = {"severity": "high", "description": "Cracked window", "reported_by": "Dana Ruiz"}
 
 
 @pytest.fixture
@@ -18,12 +17,6 @@ def client(engine, session):
     session.add(Aircraft(tail_number="N101TG"))
     session.commit()
     return TestClient(create_app(engine, clock=lambda: NOW), follow_redirects=False)
-
-
-def file(client, **overrides):
-    response = client.post("/aircraft/1/writeups", data=FILING | overrides)
-    assert response.status_code == 303, response.text
-    return int(response.headers["location"].rsplit("#writeup-", 1)[1])
 
 
 def act(client, writeup_id, action, expected=303, **data):

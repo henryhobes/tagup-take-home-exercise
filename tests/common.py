@@ -10,3 +10,11 @@ TOMORROW = date(2026, 6, 16)
 
 OPEN = [Status.unscheduled, Status.scheduled, Status.in_progress]
 CLOSED = [Status.resolved, Status.canceled]
+
+FILING = {"severity": "high", "description": "Cracked window", "reported_by": "Dana Ruiz"}
+
+
+def file(client, **overrides):
+    response = client.post("/aircraft/1/writeups", data=FILING | overrides)
+    assert response.status_code == 303, response.text
+    return int(response.headers["location"].rsplit("#writeup-", 1)[1])

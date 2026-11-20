@@ -19,7 +19,7 @@ class AircraftStatus:
 
     @property
     def grounding(self):
-        return [w for w in self.open_writeups if w.severity == Severity.high]
+        return rules.grounding(self.open_writeups)
 
     @property
     def needs_scheduling(self):
@@ -35,9 +35,7 @@ class AircraftStatus:
 
 def fleet_status(session):
     aircraft = session.scalars(select(Aircraft).order_by(Aircraft.tail_number)).all()
-    open_writeups = session.scalars(
-        select(Writeup).where(Writeup.status.in_(OPEN_STATUSES)).order_by(Writeup.id)
-    ).all()
+    open_writeups = session.scalars(select(Writeup).where(Writeup.status.in_(OPEN_STATUSES))).all()
     by_aircraft = {plane.id: [] for plane in aircraft}
     for writeup in open_writeups:
         by_aircraft[writeup.aircraft_id].append(writeup)
@@ -99,7 +97,7 @@ def file_writeup(session, aircraft_id, reported_by, description, severity, now, 
         reported_by=require_text(reported_by, "Name"),
         description=require_text(description, "Description"),
         severity=severity,
-        status=rules.Status.unscheduled,
+        status=Status.unscheduled,
         reported_at=_utc(now),
     )
     session.add(writeup)

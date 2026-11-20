@@ -3,9 +3,7 @@ from fastapi.testclient import TestClient
 
 from app.main import create_app
 from app.models import Aircraft
-from tests.common import NOW, TOMORROW
-
-FILING = {"severity": "high", "description": "Cracked window", "reported_by": "Dana Ruiz"}
+from tests.common import NOW, TOMORROW, file
 
 
 @pytest.fixture
@@ -13,11 +11,6 @@ def client(engine, session):
     session.add_all([Aircraft(tail_number="N101TG"), Aircraft(tail_number="N202TG")])
     session.commit()
     return TestClient(create_app(engine, clock=lambda: NOW), follow_redirects=False)
-
-
-def file(client, **overrides):
-    response = client.post("/aircraft/1/writeups", data=FILING | overrides)
-    assert response.status_code == 303, response.text
 
 
 def page(client, url="/"):

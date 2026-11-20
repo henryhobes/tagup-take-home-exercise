@@ -3,7 +3,7 @@ from datetime import date, timedelta
 from app import service
 from app.models import Aircraft, EventKind
 from app.rules import Severity, Status
-from tests.common import NOW
+from tests.common import NOW, TODAY, YESTERDAY
 
 
 def add_aircraft(session, *tails):
@@ -61,9 +61,6 @@ def test_downgrading_severity_clears_immediately(session):
     assert statuses(session)["N100TG"].cleared
 
 
-TODAY = NOW.date()
-
-
 def board_tails(rows):
     return [row.aircraft.tail_number for row in rows]
 
@@ -86,7 +83,7 @@ class TestBoard:
         late, unscheduled, soon, later, quiet_b, quiet_a = planes
         overdue = file(session, late, Severity.low)
         schedule(session, overdue, 0)
-        overdue.scheduled_date = TODAY - timedelta(days=1)
+        overdue.scheduled_date = YESTERDAY
         file(session, unscheduled, Severity.low)
         schedule(session, file(session, soon, Severity.low), 1)
         schedule(session, file(session, later, Severity.low), 5)
@@ -98,7 +95,7 @@ class TestBoard:
         file(session, plane, Severity.medium)
         writeup = file(session, plane, Severity.low)
         schedule(session, writeup, 0)
-        writeup.scheduled_date = TODAY - timedelta(days=1)
+        writeup.scheduled_date = YESTERDAY
         [row] = service.board(session, TODAY).cleared
         assert row.needs_scheduling
         assert row.is_overdue(TODAY)

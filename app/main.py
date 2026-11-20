@@ -18,13 +18,6 @@ from app.rules import RuleViolation, Severity, is_overdue
 
 HERE = Path(__file__).parent
 
-STATUS_LABELS = {
-    "unscheduled": "Unscheduled",
-    "scheduled": "Scheduled",
-    "in_progress": "In progress",
-    "resolved": "Resolved",
-    "canceled": "Canceled",
-}
 FIELD_LABELS = {"severity": "Severity", "scheduled_date": "Date"}
 
 
@@ -47,7 +40,7 @@ def local_time(at, now):
 templates = Jinja2Templates(directory=HERE / "templates")
 templates.env.filters["day"] = day
 templates.env.filters["local_time"] = local_time
-templates.env.globals["STATUS_LABELS"] = STATUS_LABELS
+templates.env.globals["Severity"] = Severity
 templates.env.globals["is_overdue"] = is_overdue
 
 
@@ -103,12 +96,12 @@ def board_state(request):
 
 
 def done(request, session, writeup):
+    query, hidden = board_state(request)
+    location = f"{board_url(query, hidden, writeup.aircraft.tail_number)}#writeup-{writeup.id}"
     # Commit here rather than when get_session exits: FastAPI has already sent the response
     # by then, so a failed commit would go unreported.
     session.commit()
-    query, hidden = board_state(request)
-    url = board_url(query, hidden, writeup.aircraft.tail_number)
-    return RedirectResponse(f"{url}#writeup-{writeup.id}", status_code=303)
+    return RedirectResponse(location, status_code=303)
 
 
 def render_board(request, session, now, tail="", failure=None):
@@ -118,15 +111,16 @@ def render_board(request, session, now, tail="", failure=None):
         aircraft = session.scalar(select(Aircraft).where(Aircraft.tail_number == tail))
         if aircraft is None:
             raise HTTPException(404, "Aircraft not found")
+    today = service.today(now)
     context = {
-        "board": service.board(session, service.today(now), query),
+        "board": service.board(session, today, query),
         "query": query,
         "hidden": hidden,
         "link": board_linker(query, hidden, tail),
         "form_query": board_url(query, hidden).removeprefix("/"),
         "aircraft": aircraft,
         "now": now,
-        "today": service.today(now),
+        "today": today,
         "failure": failure,
     }
     if aircraft:
@@ -141,8 +135,6 @@ async def render_failure(request, message):
     with Session(request.app.state.engine) as session:
         if "writeup_id" in params:
             writeup = session.get(Writeup, int(params["writeup_id"]))
-            if writeup is None:
-                return PlainTextResponse("Write-up not found", status_code=404)
             tail = writeup.aircraft.tail_number
             form_id = f"{writeup.id}-{request.url.path.rsplit('/', 1)[1]}"
         else:
@@ -152,7 +144,7 @@ async def render_failure(request, message):
             tail = aircraft.tail_number
             form_id = "file"
         failure = Failure(form_id, message, dict(await request.form()))
-        return render_board(request, session, request.app.state.clock(), tail=tail, failure=failure)
+        return render_board(request, session, get_now(request), tail=tail, failure=failure)
 
 
 def create_app(engine, clock=local_now):

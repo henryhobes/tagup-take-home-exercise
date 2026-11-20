@@ -18,8 +18,12 @@ class Status(StrEnum):
 OPEN_STATUSES = {Status.unscheduled, Status.scheduled, Status.in_progress}
 
 
+def grounding(writeups):
+    return [w for w in writeups if w.severity == Severity.high and w.status in OPEN_STATUSES]
+
+
 def is_cleared(writeups):
-    return not any(w.severity == Severity.high and w.status in OPEN_STATUSES for w in writeups)
+    return not grounding(writeups)
 
 
 class RuleViolation(Exception):

@@ -56,16 +56,13 @@ def test_every_aircraft_situation(session, now):
     today = service.today(now)
     fleet = service.fleet_status(session)
 
-    def open_highs(status):
-        return [w for w in status.open_writeups if w.severity == Severity.high]
-
     grounded = [s for s in fleet if not s.cleared]
     cleared = [s for s in fleet if s.cleared]
-    assert any(len(open_highs(s)) == 1 for s in grounded)
-    assert any(len(open_highs(s)) > 1 for s in grounded)
+    assert any(len(s.grounding) == 1 for s in grounded)
+    assert any(len(s.grounding) > 1 for s in grounded)
     assert any(not s.aircraft.writeups for s in cleared)
     assert any(s.open_writeups for s in cleared)
     assert any(rules.is_overdue(w, today) for s in cleared for w in s.open_writeups)
     assert any(
-        any(w.severity == Severity.high for w in s.aircraft.writeups) and not open_highs(s) for s in cleared
+        any(w.severity == Severity.high for w in s.aircraft.writeups) and not s.grounding for s in cleared
     )

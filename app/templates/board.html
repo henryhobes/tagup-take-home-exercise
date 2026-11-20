@@ -66,8 +66,8 @@
     <header class="board-head">
       <h1>Fleet clearance</h1>
       <p class="summary">
-        <span class="grounded">{{ board.grounded_count }} grounded</span>
-        <span class="cleared">{{ board.fleet_size - board.grounded_count }} cleared</span>
+        <span class="status-grounded">{{ board.grounded_count }} grounded</span>
+        <span class="status-cleared">{{ board.fleet_size - board.grounded_count }} cleared</span>
         <span>{{ board.fleet_size }} aircraft</span>
       </p>
       <p class="as-of">Status as of <time>{{ now.strftime("%H:%M") }}</time>. Refresh to update.</p>
@@ -90,7 +90,7 @@
       {% else %}
       {% for key, label, rows in [("grounded", "Grounded", board.grounded), ("cleared", "Cleared", board.cleared)] %}
       {% set is_hidden = key in hidden %}
-      <tbody class="group group-{{ key }}">
+      <tbody class="group-{{ key }}">
         <tr class="group-head">
           <th colspan="2" scope="colgroup">{{ label }} <span>{{ rows | length }}</span></th>
           <td class="toggle">
@@ -100,14 +100,10 @@
         {% if not is_hidden %}
         {% for row in rows %}
         {% set tail = row.aircraft.tail_number %}
-        <tr{% if aircraft and aircraft.id == row.aircraft.id %} aria-current="true"{% endif %}>
+        <tr class="aircraft"{% if aircraft and aircraft.id == row.aircraft.id %} aria-current="true"{% endif %}>
           <th scope="row" class="tail"><a href="{{ link(tail=tail) }}">{{ tail }}</a></th>
           <td>
-            {% if row.cleared %}
-            <span class="status status-cleared">Cleared</span>
-            {% else %}
-            <span class="status status-grounded">Grounded</span>
-            {% endif %}
+            <span class="status status-{{ key }}">{{ label }}</span>
             {% if row.open_writeups %}
             <ul class="row-writeups">
               {% for writeup in row.open_writeups %}
@@ -161,7 +157,7 @@
         <fieldset class="field">
           <legend>Severity</legend>
           <div class="choices">
-            {% for severity in ["high", "medium", "low"] %}
+            {% for severity in Severity %}
             <label><input type="radio" name="severity" value="{{ severity }}" required{% if kept('file', 'severity') == severity %} checked{% endif %}> {{ severity | capitalize }}</label>
             {% endfor %}
           </div>
@@ -193,7 +189,7 @@
               <span>Change severity to</span>
               <select name="severity" required>
                 <option value="">Choose</option>
-                {% for severity in ["high", "medium", "low"] if severity != writeup.severity %}
+                {% for severity in Severity if severity != writeup.severity %}
                 <option value="{{ severity }}"{% if kept(id ~ '-severity', 'severity') == severity %} selected{% endif %}>{{ severity | capitalize }}</option>
                 {% endfor %}
               </select>
@@ -204,7 +200,7 @@
           </form>
           {% endcall %}
 
-          <span class="state">{{ STATUS_LABELS[writeup.status] }}</span>
+          <span class="state">{{ writeup.status | replace("_", " ") | capitalize }}</span>
 
           <div class="corner">
             {% if is_overdue(writeup, today) %}<span class="flag">Overdue</span>{% endif %}
@@ -230,7 +226,7 @@
         </div>
 
         {% call edit(writeup, "description", "description") %}
-        <summary class="description">{{ writeup.description }}</summary>
+        <summary>{{ writeup.description }}</summary>
         <form method="post" action="/writeups/{{ id }}/description{{ form_query }}">
           {{ error_for([id ~ "-description"]) }}
           <label class="field">
@@ -298,7 +294,7 @@
         {% for entry in timeline %}
         <li>
           <p class="when"><time>{{ entry.at | local_time(now) }}</time> · {{ entry.actor }}</p>
-          <p class="what">{{ event_text(entry) }}</p>
+          <p>{{ event_text(entry) }}</p>
           {% if entry.event and entry.event.note %}<p class="note">{{ entry.event.note }}</p>{% endif %}
           <p class="ref">#{{ entry.writeup.id }} {{ entry.writeup.description }}</p>
         </li>
