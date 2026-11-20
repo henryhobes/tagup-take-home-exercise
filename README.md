@@ -4,6 +4,8 @@ Tagup take-home exercise: track aircraft write-ups from report to repair, and sh
 
 The decisions behind it, what was left out and what would come next are in [DECISIONS.md](DECISIONS.md).
 
+![The fleet clearance board with the panel for aircraft N402TG open beside it](docs/board.png)
+
 ## Run it
 
 The only thing to install is [uv](https://docs.astral.sh/uv/getting-started/installation/). It fetches Python 3.12 and the dependencies on the first run.
