@@ -65,6 +65,7 @@
 ### 19. Can an In progress write-up go back to Scheduled (e.g. waiting on parts)?
 **Decision:** No. It stays In progress, but its scheduled date can still be changed. The scheduled date is the date the repair should be *finished by*, not the day work starts. A multi-day repair might go In progress on Monday with a scheduled date of Friday.
 **Note:** Went against the AI recommendation, which was to allow going back to Scheduled with a new date.
+**Note:** The app calls the date "Due by" for this reason. It was first labeled "Scheduled date", which reads as the day work happens.
 
 ### 20. Can a write-up be Resolved directly from Scheduled?
 **Decision:** No. Only an In progress write-up can be Resolved.
@@ -81,11 +82,9 @@
 
 ### 24. Can a resolved or canceled write-up still be edited?
 **Decision:** No. Severity and description can only change while a write-up is open. Closed write-ups are history.
-**Note:** Made during implementation, not yet reviewed.
 
 ### 25. What happens when a change doesn't change anything (same date, same severity, same description)?
 **Decision:** It's rejected with a message, so the audit log never holds entries where nothing happened.
-**Note:** Made during implementation, not yet reviewed.
 
 ### 26. Where is the app used: at a desk or on the ramp?
 **Decision:** Designed for maintenance control at a desktop monitor first. A pilot or mechanic on a phone can still file and act on write-ups, but the phone layout isn't optimized ahead of the desk.
@@ -98,6 +97,7 @@
 **Decision:** One table with two row groups, Grounded first, then Cleared, each with a count and an explicit empty message. Each group can be hidden or shown; both start shown. Every row lists all its open write-ups, Highs first, each behind a fixed-width severity label, plus Overdue and Needs scheduling markers. Within each group, overdue first, then needs scheduling, then earliest scheduled date, then tail number.
 **Why:** Started as two separate sections with each aircraft's Highs listed inline. Once aircraft details moved into a sidebar (29), the inline lists weren't needed and would have been cramped, so one table keeps columns aligned and the phone layout trivial. A Needs scheduling marker is there because the brief says every issue needs scheduling, and an unscheduled Medium would otherwise be invisible on the board. Listing every open write-up replaced an open-count column; the fixed severity column keeps a wrapped description from reading as a second write-up. Hiding a group lets a large Cleared list get out of the way. Which groups are hidden, like the search, lives in the URL and rides along on every link and form, so it survives opening aircraft and taking actions.
 **Note:** Rows used to repeat Grounded or Cleared next to each tail. The group heading already states it for every row under it, so the repeat was dropped and the row leads with the write-ups. The aircraft panel still states clearance on its own.
+**Note:** Each write-up on a row also shows its due date, or Unscheduled, with an overdue date in the caution color. The board sorted by date without showing one, and Needs scheduling is per aircraft, so a row couldn't say which write-up lacked a date or when a grounded aircraft was due back.
 
 ### 29. Where are an aircraft's details?
 **Decision:** Selecting an aircraft opens a sidebar beside the board on desktop. On a narrow screen the same URL shows only the aircraft, with a link back to the fleet. The panel holds the clearance status, a Create Write-Up button, one card per open write-up with its actions, and one timeline of every event across all of that aircraft's write-ups. Closed write-ups appear only in the timeline. Tail-number search on the board is a plain GET form.
@@ -177,7 +177,22 @@ Each write-up card is edited in place: the severity, the date and the descriptio
 ### A14. What does someone see when they act on a write-up that changed under them?
 **Decision:** The action is rejected and the reason shows at the top of the aircraft panel, prefixed with which write-up changed. Other rejections (a blank name, a past date) still show inside the form that was submitted.
 **Why:** The card only offers the actions its status allows, so a status rejection means the page was out of date (someone else acted, or a double submit), and by then the submitted form is no longer on the card. The message used to be attached to that missing form, so the page came back as a 400 with no explanation. Status rejections are their own exception type so the route can tell the two cases apart without knowing which forms each status shows.
+**Note:** Since the version check in A15, an out-of-date page is caught before the status rule runs. The status rejection remains for requests that don't come from the page.
 
-### A15. What if two people act on the same write-up at the same moment?
-**Decision:** The first change wins and the second is rejected with the same "has changed since this page loaded" message as A14. Each write-up row carries a version number that every update checks and bumps.
+### A15. What if two people act on the same write-up?
+**Decision:** The first change wins and the second is rejected with the same "has changed since this page loaded" message as A14, whether the two requests overlap or the second comes from a page loaded before the first. Each write-up row carries a version number that every update checks and bumps, and every write-up form sends back the version it was rendered with.
 **Why:** An action reads the write-up, checks the rule, then writes. Two requests in flight together could both pass the check on the same state, leaving a write-up both canceled and resolved in the audit log. The version check makes the database refuse the second write, which no check in Python can do. It is a new column, so an existing database needs `--reset` (A3).
+**Note:** The version first covered only requests in flight together. A page left open could still be acted on after someone else's change: two people editing the same description would overwrite each other without either seeing the other's text. Now any change to a write-up makes older pages of it out of date, including an unrelated one (a description edit rejects a pending Start). The person sees the current card and repeats the action.
+
+### A16. How long can names, descriptions and notes be?
+**Decision:** Names up to 100 characters; descriptions and notes up to 1,000. Checked after trimming, in the same rule that rejects blanks, and the inputs carry the same limits.
+**Why:** Nothing was bounded: a 900 KB description was accepted and then rendered on every board row. The limits are not repeated as database CHECKs (A10); every write goes through the rule, and a new constraint would need `--reset`.
+
+### A17. What does a request for something that doesn't exist get back?
+**Decision:** Plain text with the right status (404, or 405 for a wrong method), everywhere. A tail number in the URL matches in any case, as search does. An id too large for SQLite to hold is a 404.
+**Why:** FastAPI answers these in JSON by default, so a mistyped tail showed raw `{"detail": ...}` in a server-rendered app, while other paths already answered in text. A styled error page would be nicer and isn't worth it here.
+
+## With more time
+
+### Roles and verified identity
+Anyone can clear a grounded aircraft by downgrading or canceling its High write-up under a typed name (5, 11, 21). The audit log records who someone said they were, not who they are. Next would be a login, with downgrading or canceling a High limited to maintenance control or needing a second sign-off.
