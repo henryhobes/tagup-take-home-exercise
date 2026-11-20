@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app import service
 from app.models import Aircraft, Writeup
-from app.rules import RuleViolation, Severity, is_overdue
+from app.rules import RuleViolation, Severity, WrongStatus, is_overdue
 
 HERE = Path(__file__).parent
 
@@ -130,14 +130,19 @@ def render_board(request, session, now, tail="", failure=None):
     return templates.TemplateResponse(request, "board.html", context, status_code=400 if failure else 200)
 
 
-async def render_failure(request, message):
+async def render_failure(request, message, stale=False):
     """Re-renders the aircraft the failed form belonged to, with the message and what was typed."""
     params = request.path_params
     with Session(request.app.state.engine) as session:
         if "writeup_id" in params:
             writeup = session.get(Writeup, int(params["writeup_id"]))
             tail = writeup.aircraft.tail_number
-            form_id = f"{writeup.id}-{request.url.path.rsplit('/', 1)[1]}"
+            if stale:
+                # The form that was submitted isn't on the card any more, so the panel carries the message.
+                form_id = "panel"
+                message = f"Write-up #{writeup.id} has changed since this page loaded. {message}"
+            else:
+                form_id = f"{writeup.id}-{request.url.path.rsplit('/', 1)[1]}"
         else:
             aircraft = session.get(Aircraft, int(params["aircraft_id"]))
             if aircraft is None:
@@ -156,7 +161,7 @@ def create_app(engine, clock=local_now):
 
     @app.exception_handler(RuleViolation)
     async def rule_violation(request, exc):
-        return await render_failure(request, str(exc))
+        return await render_failure(request, str(exc), stale=isinstance(exc, WrongStatus))
 
     @app.exception_handler(RequestValidationError)
     async def invalid_form(request, exc):

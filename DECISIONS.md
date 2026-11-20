@@ -169,3 +169,7 @@ Each write-up card is edited in place: the severity, the date and the descriptio
 **Decision:** One hand-written CSS file. Disclosure uses native HTML (`<details>`, separate pages). One small script keeps the board's scroll position across page loads; nothing depends on it.
 **Why:** Follows from A2. Every action is a plain form POST, so a script would add a second way for things to break. The exception: every click loads a new page, and without a script the board jumped back to the top each time, which made a long fleet list unusable. The script only restores the scroll position; with it off, every action still works.
 **Note:** Started as zero JavaScript; changed after trying the board.
+
+### A14. What does someone see when they act on a write-up that changed under them?
+**Decision:** The action is rejected and the reason shows at the top of the aircraft panel, prefixed with which write-up changed. Other rejections (a blank name, a past date) still show inside the form that was submitted.
+**Why:** The card only offers the actions its status allows, so a status rejection means the page was out of date (someone else acted, or a double submit), and by then the submitted form is no longer on the card. The message used to be attached to that missing form, so the page came back as a 400 with no explanation. Status rejections are their own exception type so the route can tell the two cases apart without knowing which forms each status shows.

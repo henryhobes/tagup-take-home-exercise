@@ -149,6 +149,8 @@
       {% endif %}
     </header>
 
+    {{ error_for(["panel"]) }}
+
     <details class="file-writeup"{% if failed(["file"]) %} open{% endif %}>
       <summary class="button">Create write-up</summary>
       <form method="post" action="/aircraft/{{ aircraft.id }}/writeups{{ form_query }}">

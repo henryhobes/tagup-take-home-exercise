@@ -30,6 +30,10 @@ class RuleViolation(Exception):
     pass
 
 
+class WrongStatus(RuleViolation):
+    pass
+
+
 def is_overdue(writeup, today):
     return writeup.status in {Status.scheduled, Status.in_progress} and writeup.scheduled_date < today
 
@@ -90,4 +94,4 @@ def _require_open(status):
 
 def _require_status(status, allowed, message):
     if status not in allowed:
-        raise RuleViolation(message)
+        raise WrongStatus(message)

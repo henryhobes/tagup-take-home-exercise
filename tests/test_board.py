@@ -97,3 +97,22 @@ def test_cleared_row_lists_its_open_writeups(client):
     file(client, severity="medium", description="Seat 3C recline stuck")
     html = page(client)
     assert "Seat 3C recline stuck" in html
+
+
+def test_action_the_writeup_has_moved_past_still_shows_why(client):
+    file(client)
+    client.post("/writeups/1/schedule", data={"actor": "Jordan Bell", "scheduled_date": TOMORROW.isoformat()})
+    client.post("/writeups/1/start", data={"actor": "Sam Okafor"})
+    response = client.post("/writeups/1/start", data={"actor": "Lee Park"})
+    assert response.status_code == 400
+    assert "Write-up #1 has changed since this page loaded." in response.text
+    assert "Only a scheduled write-up can be started." in response.text
+
+
+def test_action_on_a_closed_writeup_still_shows_why(client):
+    file(client)
+    client.post("/writeups/1/cancel", data={"actor": "Sam Okafor", "note": "Duplicate"})
+    response = client.post("/writeups/1/cancel", data={"actor": "Lee Park", "note": "Duplicate"})
+    assert response.status_code == 400
+    assert "Write-up #1 has changed since this page loaded." in response.text
+    assert "A canceled write-up" in response.text
