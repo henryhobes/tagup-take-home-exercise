@@ -78,3 +78,37 @@
 ### 23. Can a write-up's description or aircraft be edited after filing?
 **Decision:** The description can be edited, and each edit is recorded in the audit log. The aircraft can't be changed; a write-up filed against the wrong aircraft is canceled and filed again.
 **Note:** Went against the AI recommendation, which was to allow no edits.
+
+## Architecture
+
+### A1. Language and framework?
+**Decision:** Python with FastAPI.
+**Why:** Small and explicit. Pydantic validates input at the boundary, and pytest with TestClient makes route tests easy. Django brings more ceremony than this needs; TypeScript only pays off with a separate JS frontend.
+
+### A2. Server-rendered pages or a separate JS app?
+**Decision:** Server-rendered HTML templates with plain forms, redirecting after each POST.
+**Why:** One process, one language, nothing to build. Decision 12 only needs status to be correct on page load, so a single-page app's extra toolchain buys nothing.
+
+### A3. Database and how we talk to it?
+**Decision:** SQLite through SQLAlchemy. Tables are created on startup; no migration tool.
+**Why:** No setup for the reviewer, and SQLite easily handles 1,500 aircraft. A transaction makes each change and its audit entry commit together. A schema change means deleting the DB file and reseeding, which is fine for a demo.
+
+### A4. What shape are the routes?
+**Decision:** One POST route per action (schedule, start, resolve, cancel, change severity, edit description), each with its own required fields and its own audit entry. No JSON API.
+**Why:** Each action has different rules and inputs, so separate routes keep validation explicit. A generic edit route would have to infer what happened. Nothing in the brief needs JSON.
+
+### A5. How does someone run it?
+**Decision:** One `uv run` command. It seeds demo data when the DB file doesn't exist; a reset command wipes and reseeds.
+**Why:** uv fetches the right Python and dependencies itself, which avoids the most common way take-homes fail to start. No external services.
+
+### A6. How is testing set up?
+**Decision:** pytest in two layers. Unit tests on plain Python rule functions (transitions, grounding, overdue, date checks), written first. Route tests through TestClient on a fresh SQLite database per test. No browser tests; the UI is checked by hand.
+**Why:** Rules get fast, pinpointed tests for TDD; route tests cover what only exists with a database (audit entries, validation errors, the fleet page). Browser tests are a time sink at this scope.
+
+### A7. Where is "cleared to fly" computed?
+**Decision:** In one Python rule function. The fleet page loads all open write-ups in one query, groups them by aircraft, and applies it.
+**Why:** One source of truth that the unit tests cover. At 1,500 aircraft that's milliseconds. At far larger scale it would move into SQL.
+
+### A8. What counts as "today" for Overdue and past-date checks?
+**Decision:** The server's local date. Scheduled dates are calendar dates with no time. Today is passed into the rule functions so tests can fix it. Audit timestamps are stored in UTC.
+**Why:** Simple and predictable. An airline spanning time zones could disagree about "today" near midnight; per-base time zones would fix that but aren't worth it here.
