@@ -171,7 +171,7 @@ Each write-up card is edited in place: the severity, the date and the descriptio
 ### A13. How much frontend tooling?
 **Decision:** One hand-written CSS file. Disclosure uses native HTML (`<details>`, separate pages). One small script keeps the board's scroll position across page loads; nothing depends on it.
 **Why:** Follows from A2. Every action is a plain form POST, so a script would add a second way for things to break. The exception: every click loads a new page, and without a script the board jumped back to the top each time, which made a long fleet list unusable. The script only restores the scroll position; with it off, every action still works.
-**Note:** Started as zero JavaScript; changed after trying the board.
+**Note:** Started as zero JavaScript; changed after trying the board. The saved position is kept only while the search is the same: restoring it onto a different search's results left the first matches off screen. Hiding or showing a group keeps it, since the link clicked is in the list.
 
 ### A14. What does someone see when they act on a write-up that changed under them?
 **Decision:** The action is rejected and the reason shows at the top of the aircraft panel, prefixed with which write-up changed. Other rejections (a blank name, a past date) still show inside the form that was submitted.
