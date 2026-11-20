@@ -39,7 +39,7 @@
 
 {%- macro event_text(entry) -%}
 {% set event = entry.event %}
-{% if event is none %}Filed as {{ entry.writeup.severity | capitalize }}
+{% if event is none %}Filed as {{ filed_severity(entry.writeup) | capitalize }}
 {% elif event.kind == "scheduled" %}Scheduled for {{ event.to_value | day }}
 {% elif event.kind == "rescheduled" %}Rescheduled from {{ event.from_value | day }} to {{ event.to_value | day }}
 {% elif event.kind == "unscheduled" %}Unscheduled; was {{ event.from_value | day }}

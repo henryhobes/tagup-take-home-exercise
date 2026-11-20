@@ -42,6 +42,7 @@ templates.env.filters["day"] = day
 templates.env.filters["local_time"] = local_time
 templates.env.globals["Severity"] = Severity
 templates.env.globals["is_overdue"] = is_overdue
+templates.env.globals["filed_severity"] = service.filed_severity
 
 
 def get_session(request: Request):

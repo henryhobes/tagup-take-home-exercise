@@ -125,3 +125,12 @@ def test_timeline_lists_filing_and_events_newest_first(session):
         (first, EventKind.scheduled),
         (first, "filed"),
     ]
+
+
+def test_filed_severity_is_the_one_before_any_change(session):
+    [plane] = add_aircraft(session, "N100TG")
+    writeup = file(session, plane, Severity.high)
+    service.change_severity(session, writeup, "Sam Okafor", Severity.medium, "Within limits", NOW)
+    service.change_severity(session, writeup, "Sam Okafor", Severity.low, "Cosmetic only", NOW)
+    assert service.filed_severity(writeup) == Severity.high
+    assert service.filed_severity(file(session, plane, Severity.low)) == Severity.low

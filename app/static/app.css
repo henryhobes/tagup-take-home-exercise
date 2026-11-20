@@ -131,7 +131,7 @@ textarea { resize: vertical; width: 100%; }
 
 .fleet thead th { color: var(--muted); padding-block: 0.5rem; }
 
-.group-head > * { padding-top: 1.75rem; border-bottom-color: currentColor; }
+.fleet .group-head > * { padding-top: 1.75rem; border-bottom-color: currentColor; }
 .group-head span { margin-left: 0.5rem; }
 .group-grounded .group-head { color: var(--grounded); }
 .group-cleared .group-head { color: var(--cleared); }

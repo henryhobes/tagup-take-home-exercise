@@ -49,6 +49,13 @@ def test_aircraft_panel_shows_open_writeups_and_timeline(client):
     assert "Dana Ruiz" in html
 
 
+def test_timeline_shows_the_severity_a_writeup_was_filed_with(client):
+    file(client)
+    change = {"severity": "low", "note": "Cosmetic only", "actor": "Sam Okafor"}
+    assert client.post("/writeups/1/severity", data=change).status_code == 303
+    assert "Filed as High" in page(client, "/?aircraft=N101TG")
+
+
 def test_unknown_aircraft_is_404(client):
     assert client.get("/?aircraft=N999TG").status_code == 404
 

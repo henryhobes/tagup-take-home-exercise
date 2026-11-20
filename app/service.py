@@ -82,6 +82,12 @@ def timeline(aircraft):
     return sorted(entries, key=lambda entry: entry.at)[::-1]
 
 
+def filed_severity(writeup):
+    # Filing isn't an audit-log row (A9), so the severity at filing is whatever the first change replaced.
+    changes = [event for event in writeup.events if event.kind == EventKind.severity_changed]
+    return changes[0].from_value if changes else writeup.severity
+
+
 def open_writeups(aircraft):
     return by_severity(w for w in aircraft.writeups if w.status in OPEN_STATUSES)
 
