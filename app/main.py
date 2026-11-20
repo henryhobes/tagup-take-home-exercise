@@ -26,6 +26,7 @@ FIELD_LABELS = {
     "reported_by": "Name",
     "description": "Description",
     "note": "Note",
+    "version": "Page version",
 }
 
 
@@ -69,10 +70,19 @@ Now = Annotated[datetime, Depends(get_now)]
 Text = Annotated[str, Form()]
 
 
-def load_writeup(writeup_id: int, session: DbSession):
+class StalePage(Exception):
+    pass
+
+
+def load_writeup(writeup_id: int, session: DbSession, version: Annotated[int, Form()]):
+    """Every write-up form sends back the version it was rendered with, so an action
+    taken from a page that is out of date is refused rather than applied to a write-up
+    the person hasn't seen."""
     writeup = session.get(Writeup, writeup_id)
     if writeup is None:
         raise HTTPException(404, "Write-up not found")
+    if writeup.version != version:
+        raise StalePage
     return writeup
 
 
@@ -146,6 +156,8 @@ async def render_failure(request, message, stale=False):
     with Session(request.app.state.engine) as session:
         if "writeup_id" in params:
             writeup = session.get(Writeup, int(params["writeup_id"]))
+            if writeup is None:
+                return PlainTextResponse("Write-up not found", status_code=404)
             tail = writeup.aircraft.tail_number
             if stale:
                 # The form that was submitted isn't on the card any more, so the panel carries the message.
@@ -173,6 +185,7 @@ def create_app(engine, clock=local_now):
     async def rule_violation(request, exc):
         return await render_failure(request, str(exc), stale=isinstance(exc, WrongStatus))
 
+    @app.exception_handler(StalePage)
     @app.exception_handler(StaleDataError)
     async def changed_meanwhile(request, exc):
         return await render_failure(request, "Nothing was saved.", stale=True)

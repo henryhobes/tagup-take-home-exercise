@@ -194,6 +194,7 @@
           {% call edit(writeup, "severity", "severity") %}
           <summary class="severity severity-{{ writeup.severity }}" aria-label="Severity {{ writeup.severity }}, change it">{{ writeup.severity }}</summary>
           <form class="popover" method="post" action="/writeups/{{ id }}/severity{{ form_query }}">
+            <input type="hidden" name="version" value="{{ writeup.version }}">
             {{ error_for([id ~ "-severity"]) }}
             <label class="field">
               <span>Change severity to</span>
@@ -218,6 +219,7 @@
             {% call edit(writeup, "schedule", "date", [id ~ "-schedule", id ~ "-unschedule"]) %}
             <summary class="date" aria-label="Due {{ writeup.scheduled_date | day }}, change it">Due {{ writeup.scheduled_date | day }}</summary>
             <form class="popover popover-end" method="post" action="/writeups/{{ id }}/schedule{{ form_query }}">
+              <input type="hidden" name="version" value="{{ writeup.version }}">
               {{ error_for([id ~ "-schedule", id ~ "-unschedule"]) }}
               <label class="field"><span>Due by</span>{{ date_input(id ~ "-schedule", writeup.scheduled_date) }}</label>
               {{ name_field(id ~ "-schedule") }}
@@ -238,6 +240,7 @@
         {% call edit(writeup, "description", "description") %}
         <summary>{{ writeup.description }}</summary>
         <form method="post" action="/writeups/{{ id }}/description{{ form_query }}">
+          <input type="hidden" name="version" value="{{ writeup.version }}">
           {{ error_for([id ~ "-description"]) }}
           <label class="field">
             <span>Description</span>
@@ -255,6 +258,7 @@
           {% call edit(writeup, "schedule", "step") %}
           <summary class="button">Schedule</summary>
           <form method="post" action="/writeups/{{ id }}/schedule{{ form_query }}">
+            <input type="hidden" name="version" value="{{ writeup.version }}">
             {{ error_for([id ~ "-schedule"]) }}
             <label class="field"><span>Due by</span>{{ date_input(id ~ "-schedule", none) }}</label>
             {{ name_field(id ~ "-schedule") }}
@@ -265,6 +269,7 @@
           {% call edit(writeup, "start", "step") %}
           <summary class="button">Start work</summary>
           <form method="post" action="/writeups/{{ id }}/start{{ form_query }}">
+            <input type="hidden" name="version" value="{{ writeup.version }}">
             {{ error_for([id ~ "-start"]) }}
             {{ name_field(id ~ "-start") }}
             <button class="button">Start work</button>
@@ -274,6 +279,7 @@
           {% call edit(writeup, "resolve", "step") %}
           <summary class="button">Resolve</summary>
           <form method="post" action="/writeups/{{ id }}/resolve{{ form_query }}">
+            <input type="hidden" name="version" value="{{ writeup.version }}">
             {{ error_for([id ~ "-resolve"]) }}
             {{ note_field(id ~ "-resolve", "What was done") }}
             {{ name_field(id ~ "-resolve") }}
@@ -285,6 +291,7 @@
           {% call edit(writeup, "cancel", "cancel") %}
           <summary class="cancel-link">Cancel write-up</summary>
           <form class="popover popover-end" method="post" action="/writeups/{{ id }}/cancel{{ form_query }}">
+            <input type="hidden" name="version" value="{{ writeup.version }}">
             {{ error_for([id ~ "-cancel"]) }}
             {{ note_field(id ~ "-cancel", "Why cancel it") }}
             {{ name_field(id ~ "-cancel") }}

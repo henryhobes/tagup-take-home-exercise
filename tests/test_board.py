@@ -53,8 +53,7 @@ def test_aircraft_panel_shows_open_writeups_and_timeline(client):
 
 def test_timeline_shows_the_severity_a_writeup_was_filed_with(client):
     file(client)
-    change = {"severity": "low", "note": "Cosmetic only", "actor": "Sam Okafor"}
-    assert client.post("/writeups/1/severity", data=change).status_code == 303
+    act(client, 1, "severity", severity="low", note="Cosmetic only")
     assert "Filed as High" in page(client, "/?aircraft=N101TG")
 
 
@@ -68,10 +67,9 @@ def test_filing_form_has_no_default_severity(client):
 
 def test_failed_action_rerenders_panel_with_message_and_input(client):
     file(client)
-    client.post("/writeups/1/schedule", data={"actor": "Jordan Bell", "scheduled_date": TOMORROW.isoformat()})
-    client.post("/writeups/1/start", data={"actor": "Sam Okafor"})
-    response = client.post("/writeups/1/resolve", data={"actor": "Lee Park", "note": " "})
-    assert response.status_code == 400
+    act(client, 1, "schedule", actor="Jordan Bell", scheduled_date=TOMORROW.isoformat())
+    act(client, 1, "start")
+    response = act(client, 1, "resolve", expected=400, actor="Lee Park", note=" ")
     assert "What was done is required." in response.text
     assert 'value="Lee Park"' in response.text
     assert "N101TG" in response.text
@@ -103,19 +101,17 @@ def test_cleared_row_lists_its_open_writeups(client):
 
 def test_action_the_writeup_has_moved_past_still_shows_why(client):
     file(client)
-    client.post("/writeups/1/schedule", data={"actor": "Jordan Bell", "scheduled_date": TOMORROW.isoformat()})
-    client.post("/writeups/1/start", data={"actor": "Sam Okafor"})
-    response = client.post("/writeups/1/start", data={"actor": "Lee Park"})
-    assert response.status_code == 400
+    act(client, 1, "schedule", actor="Jordan Bell", scheduled_date=TOMORROW.isoformat())
+    act(client, 1, "start")
+    response = act(client, 1, "start", expected=400, actor="Lee Park")
     assert "Write-up #1 has changed since this page loaded." in response.text
     assert "Only a scheduled write-up can be started." in response.text
 
 
 def test_action_on_a_closed_writeup_still_shows_why(client):
     file(client)
-    client.post("/writeups/1/cancel", data={"actor": "Sam Okafor", "note": "Duplicate"})
-    response = client.post("/writeups/1/cancel", data={"actor": "Lee Park", "note": "Duplicate"})
-    assert response.status_code == 400
+    act(client, 1, "cancel", note="Duplicate")
+    response = act(client, 1, "cancel", expected=400, actor="Lee Park", note="Duplicate")
     assert "Write-up #1 has changed since this page loaded." in response.text
     assert "A canceled write-up" in response.text
 
@@ -159,3 +155,10 @@ def test_missing_due_date_says_so(client):
     file(client)
     response = act(client, 1, "schedule", expected=400)
     assert "Due date is required." in response.text
+
+
+def test_every_writeup_form_carries_the_version_it_was_rendered_with(client):
+    file(client)
+    act(client, 1, "description", description="Cracked left cockpit window")
+    html = page(client, "/?aircraft=N101TG")
+    assert html.count('<input type="hidden" name="version" value="2">') == html.count(' action="/writeups/1/')

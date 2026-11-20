@@ -7,7 +7,7 @@ from sqlalchemy import select, text
 from app.main import create_app
 from app.models import Aircraft, EventKind, Writeup
 from app.rules import Severity, Status
-from tests.common import FILING, NOW, TOMORROW, YESTERDAY, act, file
+from tests.common import FILING, NOW, TOMORROW, YESTERDAY, act, current_version, file
 
 NEXT_WEEK = date(2026, 6, 22)
 
@@ -203,7 +203,8 @@ def test_blank_actor_is_rejected(client, session, action):
 
 def test_redirect_keeps_search_and_hidden_groups(client):
     writeup_id = scheduled(client)
-    response = client.post(f"/writeups/{writeup_id}/start?q=N1&hide=cleared", data={"actor": "Sam Okafor"})
+    form = {"actor": "Sam Okafor", "version": current_version(client, writeup_id)}
+    response = client.post(f"/writeups/{writeup_id}/start?q=N1&hide=cleared", data=form)
     assert response.headers["location"] == f"/?q=N1&hide=cleared&aircraft=N101TG#writeup-{writeup_id}"
 
 
@@ -213,7 +214,11 @@ def test_unknown_writeup_is_404(client):
 
 def test_file_sent_as_a_text_field_is_rejected(client):
     writeup_id = scheduled(client)
-    response = client.post(f"/writeups/{writeup_id}/start", files={"actor": ("name.txt", b"Sam Okafor")})
+    response = client.post(
+        f"/writeups/{writeup_id}/start",
+        data={"version": current_version(client, writeup_id)},
+        files={"actor": ("name.txt", b"Sam Okafor")},
+    )
     assert response.status_code == 400
     assert "Name is invalid." in response.text
 
@@ -235,3 +240,25 @@ def test_change_made_while_a_request_is_in_flight_is_not_overwritten(client, eng
     assert f"Write-up #{writeup_id} has changed since this page loaded. Nothing was saved." in response.text
     assert load(session, writeup_id).status == Status.canceled
     assert events(session, writeup_id)[-1].kind == EventKind.started
+
+
+def test_action_from_a_page_loaded_before_another_change_is_rejected(client, session):
+    writeup_id = scheduled(client)
+    loaded = current_version(client, writeup_id)
+    act(client, writeup_id, "description", description="Cracked left cockpit window")
+    response = act(client, writeup_id, "start", expected=400, version=loaded)
+    assert f"Write-up #{writeup_id} has changed since this page loaded. Nothing was saved." in response.text
+    assert load(session, writeup_id).status == Status.scheduled
+    assert events(session, writeup_id)[-1].kind == EventKind.description_edited
+
+
+def test_action_without_a_version_is_rejected(client, session):
+    writeup_id = scheduled(client)
+    response = client.post(f"/writeups/{writeup_id}/start", data={"actor": "Sam Okafor"})
+    assert response.status_code == 400
+    assert "Page version is required." in response.text
+    assert load(session, writeup_id).status == Status.scheduled
+
+
+def test_unknown_writeup_without_a_version_is_404(client):
+    assert client.post("/writeups/999/start", data={"actor": "Sam Okafor"}).status_code == 404

@@ -1,5 +1,8 @@
 from datetime import date, datetime, timedelta, timezone
 
+from sqlalchemy.orm import Session
+
+from app.models import Writeup
 from app.rules import Status
 
 ZONE = timezone(timedelta(hours=-5))
@@ -22,6 +25,15 @@ def file(client, **overrides):
 
 def act(client, writeup_id, action, expected=303, **data):
     data.setdefault("actor", "Sam Okafor")
+    if "version" not in data:
+        data["version"] = current_version(client, writeup_id)
     response = client.post(f"/writeups/{writeup_id}/{action}", data=data)
     assert response.status_code == expected, response.text
     return response
+
+
+def current_version(client, writeup_id):
+    """The version a freshly loaded page would send back."""
+    with Session(client.app.state.engine) as session:
+        writeup = session.get(Writeup, writeup_id)
+        return writeup.version if writeup else 1
