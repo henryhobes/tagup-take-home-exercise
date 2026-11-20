@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.exc import StaleDataError
 
 from app import service
 from app.models import Aircraft, Writeup
@@ -171,6 +172,10 @@ def create_app(engine, clock=local_now):
     @app.exception_handler(RuleViolation)
     async def rule_violation(request, exc):
         return await render_failure(request, str(exc), stale=isinstance(exc, WrongStatus))
+
+    @app.exception_handler(StaleDataError)
+    async def changed_meanwhile(request, exc):
+        return await render_failure(request, "Nothing was saved.", stale=True)
 
     @app.exception_handler(RequestValidationError)
     async def invalid_form(request, exc):

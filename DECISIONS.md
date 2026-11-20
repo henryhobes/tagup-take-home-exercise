@@ -176,3 +176,7 @@ Each write-up card is edited in place: the severity, the date and the descriptio
 ### A14. What does someone see when they act on a write-up that changed under them?
 **Decision:** The action is rejected and the reason shows at the top of the aircraft panel, prefixed with which write-up changed. Other rejections (a blank name, a past date) still show inside the form that was submitted.
 **Why:** The card only offers the actions its status allows, so a status rejection means the page was out of date (someone else acted, or a double submit), and by then the submitted form is no longer on the card. The message used to be attached to that missing form, so the page came back as a 400 with no explanation. Status rejections are their own exception type so the route can tell the two cases apart without knowing which forms each status shows.
+
+### A15. What if two people act on the same write-up at the same moment?
+**Decision:** The first change wins and the second is rejected with the same "has changed since this page loaded" message as A14. Each write-up row carries a version number that every update checks and bumps.
+**Why:** An action reads the write-up, checks the rule, then writes. Two requests in flight together could both pass the check on the same state, leaving a write-up both canceled and resolved in the audit log. The version check makes the database refuse the second write, which no check in Python can do. It is a new column, so an existing database needs `--reset` (A3).

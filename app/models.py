@@ -64,6 +64,10 @@ class Writeup(Base):
     reported_by: Mapped[str]
     # Naive UTC: SQLite has no time zone type.
     reported_at: Mapped[datetime]
+    version: Mapped[int] = mapped_column()
+
+    # Each update checks the version it read, so a change made in between fails instead of being overwritten.
+    __mapper_args__ = {"version_id_col": version}
 
     aircraft: Mapped[Aircraft] = relationship(back_populates="writeups")
     events: Mapped[list["WriteupEvent"]] = relationship(order_by="WriteupEvent.id")

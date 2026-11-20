@@ -10,6 +10,7 @@ WRITEUP = dict(
     scheduled_date=None,
     reported_by="Dana Ruiz",
     reported_at="2026-06-15 12:00:00",
+    version=1,
 )
 EVENT = dict(
     writeup_id=1,

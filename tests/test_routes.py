@@ -2,7 +2,7 @@ from datetime import UTC, date
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.main import create_app
 from app.models import Aircraft, EventKind, Writeup
@@ -223,3 +223,22 @@ def test_file_sent_as_a_text_field_is_rejected(client):
     response = client.post(f"/writeups/{writeup_id}/start", files={"actor": ("name.txt", b"Sam Okafor")})
     assert response.status_code == 400
     assert "Name is invalid." in response.text
+
+
+def test_change_made_while_a_request_is_in_flight_is_not_overwritten(client, engine, session):
+    writeup_id = in_progress(client)
+
+    # The clock is read after the write-up is loaded, so this lands between the read and the write.
+    def cancel_meanwhile():
+        with engine.begin() as connection:
+            connection.execute(
+                text("UPDATE writeup SET status = 'canceled', version = version + 1 WHERE id = :id"),
+                {"id": writeup_id},
+            )
+        return NOW
+
+    client.app.state.clock = cancel_meanwhile
+    response = act(client, writeup_id, "resolve", expected=400, note="Replaced the pane")
+    assert f"Write-up #{writeup_id} has changed since this page loaded. Nothing was saved." in response.text
+    assert load(session, writeup_id).status == Status.canceled
+    assert events(session, writeup_id)[-1].kind == EventKind.started
